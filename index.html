@@ -46,6 +46,7 @@
         button:active { opacity: 0.7; }
         .btn-success { background-color: var(--success); }
         .btn-secondary { background-color: #45475a; color: var(--text); }
+        .btn-danger { background-color: var(--accent); color: #11111b; }
 
         #map-container, #result-map-container {
             width: 100%; flex-grow: 1; border-radius: 12px; overflow: hidden;
@@ -152,6 +153,7 @@
     <div id="lobby-screen" class="screen">
         <h1>Room Code: <span id="display-room-code" style="color:var(--accent);">...</span></h1>
         <p id="lobby-status">Waiting for players...</p>
+        <p id="lobby-error" style="color: var(--accent); display: none; text-align: center; font-size: 14px; font-weight: bold;"></p>
         
         <div class="leaderboard" id="lobby-players">
             </div>
@@ -169,6 +171,8 @@
             </select>
             <button onclick="startOnlineGame()" class="btn-success">Start Game</button>
         </div>
+        
+        <button onclick="location.reload()" class="btn-danger" style="margin-top: 15px; width: 90%; max-width: 350px;">Leave / Try Again</button>
     </div>
 
     <div id="pass-screen" class="screen">
@@ -203,7 +207,7 @@
             <div id="result-map"></div>
         </div>
         <button id="next-round-btn" onclick="nextRoundOrFinish()" style="margin-bottom: 0; display:none;">Continue</button>
-        <div id="waiting-host-msg" style="display:none; text-align:center; padding:15px;">Waiting for Host...</div>
+        <div id="waiting-host-msg" style="display:none; text-align:center; padding:15px; font-weight: bold; color: var(--primary);">Waiting for Host to continue...</div>
     </div>
 
     <div id="final-results-screen" class="screen">
@@ -225,7 +229,7 @@
     for (let key in rawDb) { db[key] = rawDb[key].map(i => ({ name: i[0], lat: i[1], lng: i[2] })); }
 
     // --- GAME STATE ---
-    let mode = 'local'; // 'local' or 'online'
+    let mode = 'local';
     let isHost = false;
     let players = []; 
     let totalRounds = 3;
@@ -238,8 +242,8 @@
     
     // Online specific
     let peer = null;
-    let connections = []; // Host holds connections to guests
-    let hostConn = null; // Guest holds connection to host
+    let connections = []; 
+    let hostConn = null; 
     let myId = '';
     let onlineGuessesReceived = 0;
 
@@ -287,12 +291,20 @@
 
     function initPeer(onOpen) {
         const name = document.getElementById('my-online-name').value.trim() || "Player";
-        // Prefix ensures unique namespaces
         peer = new Peer('geopin-' + generateRoomCode()); 
+        
         peer.on('open', (id) => {
             myId = id;
+            players = []; // clear in case of retry
             players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
             if(onOpen) onOpen(id);
+        });
+
+        // NEW: Explicit error handling for the peer server
+        peer.on('error', (err) => {
+            document.getElementById('lobby-error').style.display = 'block';
+            document.getElementById('lobby-error').innerText = "Network Error (" + err.type + "). Please try again.";
+            document.getElementById('lobby-status').innerText = "Connection Failed.";
         });
     }
 
@@ -300,6 +312,7 @@
         mode = 'online';
         isHost = true;
         document.getElementById('lobby-status').innerText = "Creating room...";
+        document.getElementById('lobby-error').style.display = 'none';
         navTo('lobby-screen');
 
         initPeer((id) => {
@@ -308,7 +321,6 @@
             document.getElementById('host-controls').style.display = 'block';
             updateLobbyUI();
 
-            // Listen for guests
             peer.on('connection', (conn) => {
                 connections.push(conn);
                 conn.on('data', (data) => handleHostData(conn, data));
@@ -322,17 +334,35 @@
         const code = document.getElementById('join-room-code').value.trim().toUpperCase();
         if(!code) return alert("Enter a room code");
         
-        document.getElementById('lobby-status').innerText = "Connecting...";
+        document.getElementById('lobby-status').innerText = "Connecting to host...";
+        document.getElementById('lobby-error').style.display = 'none';
         navTo('lobby-screen');
         document.getElementById('display-room-code').innerText = code;
 
         initPeer((id) => {
-            hostConn = peer.connect('geopin-' + code);
+            // reliable: true forces WebRTC to use a more stable connection protocol
+            hostConn = peer.connect('geopin-' + code, { reliable: true });
+            
+            // NEW: 10 second timeout check
+            const connectTimeout = setTimeout(() => {
+                if (!hostConn.open) {
+                    document.getElementById('lobby-error').style.display = 'block';
+                    document.getElementById('lobby-error').innerText = "Could not reach host. Are they still in the lobby? Did you type the code right?";
+                    document.getElementById('lobby-status').innerText = "Connection Failed.";
+                }
+            }, 10000);
+
             hostConn.on('open', () => {
+                clearTimeout(connectTimeout); // We connected successfully, cancel the timeout error
                 document.getElementById('lobby-status').innerText = "Connected! Waiting for host to start...";
-                // Send my details to host
                 hostConn.send({ type: 'JOIN', id: myId, name: players[0].name });
             });
+
+            hostConn.on('error', (err) => {
+                document.getElementById('lobby-error').style.display = 'block';
+                document.getElementById('lobby-error').innerText = "Connection Dropped. Please try again.";
+            });
+
             hostConn.on('data', (data) => handleGuestData(data));
         });
     }
@@ -341,7 +371,7 @@
         const board = document.getElementById('lobby-players');
         board.innerHTML = '';
         players.forEach(p => {
-            board.innerHTML += `<div class="score-row"><div>${p.name}</div>${p.id === myId ? '<small>(You)</small>' : ''}</div>`;
+            board.innerHTML += `<div class="score-row"><div>${p.name}</div>${p.id === myId ? '<small style="color:var(--primary);">(You)</small>' : ''}</div>`;
         });
         document.getElementById('lobby-status').innerText = `Players: ${players.length}/4`;
     }
@@ -378,7 +408,7 @@
             totalRounds = data.totalRounds;
             currentRound = 1;
             initMap();
-            startTurn(); // Skip pass screen, go straight to game
+            startTurn(); 
         }
         else if (data.type === 'ROUND_RESULTS') {
             players = data.players;
@@ -416,9 +446,8 @@
     }
 
     function finishOnlineRound() {
-        // Broadcast results to all guests
         broadcast({ type: 'ROUND_RESULTS', players: players });
-        showRoundMapResults(); // Show for Host
+        showRoundMapResults(); 
     }
 
     // --- GAMEPLAY (Shared) ---
@@ -501,7 +530,7 @@
         document.getElementById('map-res-round').innerText = currentRound;
         document.getElementById('map-res-target').innerText = currentTarget.name;
 
-        if (mode === 'online') onlineGuessesReceived = 0; // Reset for next round
+        if (mode === 'online') onlineGuessesReceived = 0; 
 
         // Host controls continuation
         document.getElementById('next-round-btn').style.display = (mode === 'local' || isHost) ? 'block' : 'none';
