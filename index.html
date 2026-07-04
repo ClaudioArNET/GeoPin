@@ -81,7 +81,7 @@
         .map-overlay-scoreboard {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
             background: rgba(49, 50, 68, 0.95); padding: 10px; border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 260px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 270px;
         }
         .overlay-score-row {
             display: flex; justify-content: space-between; font-size: 13px;
@@ -141,6 +141,7 @@
             <select id="local-round-select">
                 <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
                 <option value="7">7 Rounds</option><option value="10">10 Rounds</option>
+                <option value="15">15 Rounds</option>
             </select>
             <select id="local-timer-select">
                 <option value="0">Time: Unlimited</option>
@@ -190,7 +191,8 @@
             </select>
             <select id="online-round-select">
                 <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
-                <option value="7">7 Rounds</option>
+                <option value="7">7 Rounds</option><option value="10">10 Rounds</option>
+                <option value="15">15 Rounds</option>
             </select>
             <select id="online-timer-select">
                 <option value="0">Time: Unlimited</option>
@@ -267,10 +269,10 @@
     </div>
 
 <script>
-    // --- DATABASE ---
+    // --- MASSIVELY EXPANDED DATABASE ---
     const rawDb = {
         cities: [
-            ["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["Osaka",34.693,135.502],["New York",40.712,-74.006],["Karachi",24.86,67.001],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Kolkata",22.572,88.363],["Manila",14.599,120.984],["Lagos",6.524,3.379],["Rio de Janeiro",-22.906,-43.172],["Kinshasa",-4.441,15.266],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Lahore",31.52,74.358],["Bangalore",12.971,77.594],["Paris",48.856,2.352],["Bogota",4.711,-74.072],["Jakarta",-6.208,106.845],["Lima",-12.046,-77.028],["Bangkok",13.756,100.501],["Seoul",37.566,126.978],["London",51.507,-0.127],["Tehran",35.689,51.389],["Chicago",41.878,-87.629],["Ho Chi Minh City",10.823,106.629],["Luanda",-8.839,13.289],["Kuala Lumpur",3.139,101.686],["Hong Kong",22.319,114.169],["Riyadh",24.713,46.675],["Baghdad",33.315,44.361],["Santiago",-33.448,-70.669],["Madrid",40.416,-3.703],["Toronto",43.653,-79.383],["Miami",25.761,-80.191],["Singapore",1.352,103.819],["Philadelphia",39.952,-75.165],["Atlanta",33.749,-84.387],["Barcelona",41.385,2.173],["Johannesburg",-26.204,28.047],["St Petersburg",59.931,30.36],["Washington DC",38.907,-77.036],["Dubai",25.204,55.27],["Melbourne",-37.813,144.963],["Sydney",-33.868,151.209],["Nairobi",-1.292,36.821],["San Francisco",37.774,-122.419],["Algiers",36.752,3.042],["Kabul",34.528,69.111],["Ankara",39.92,32.854],["Boston",42.36,-71.058],["Rome",41.902,12.496],["Montreal",45.501,-73.567],["Athens",37.983,23.727],["Berlin",52.52,13.405],["Vienna",48.208,16.373],["Amsterdam",52.367,4.904],["Brussels",50.85,4.351],["Copenhagen",55.676,12.568],["Stockholm",59.329,18.068],["Oslo",59.913,10.752],["Helsinki",60.169,24.938],["Warsaw",52.229,21.012],["Prague",50.088,14.42],["Budapest",47.497,19.04],["Zurich",47.376,8.541],["Geneva",46.204,6.143],["Munich",48.135,11.582],["Frankfurt",50.11,8.682],["Hamburg",53.551,9.993],["Milan",45.464,9.19],["Venice",45.44,12.315],["Florence",43.769,11.259],["Naples",40.851,14.268],["Lisbon",38.722,-9.139],["Porto",41.157,-8.629],["Dublin",53.349,-6.26],["Edinburgh",55.953,-3.188],["Manchester",53.48,-2.242],["Birmingham",52.486,-1.89],["Liverpool",53.408,-2.981],["Glasgow",55.864,-4.251],["Belfast",54.597,-5.93],["Cardiff",51.481,-3.179],["Auckland",-36.848,174.763],["Wellington",-41.286,174.776],["Christchurch",-43.532,172.636],["Brisbane",-27.469,153.025],["Perth",-31.95,115.86],["Adelaide",-34.928,138.6],["Hobart",-42.882,147.327],["Darwin",-12.463,130.845],["Canberra",-35.28,149.13],["Cape Town",-33.924,18.424],["Pretoria",-25.747,28.229],["Durban",-29.858,31.021],["Accra",5.603,-0.187],["Addis Ababa",8.98,38.757],["Casablanca",33.573,-7.589],["Dakar",14.716,-17.467],["Vancouver",49.282,-123.120],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Houston",33.760,-95.369],["Dallas",29.760,-95.369],["Austin",32.776,-96.797],["Phoenix",30.267,-97.743],["Las Vegas",33.448,-112.074],["San Diego",32.715,-117.161],["San Antonio",29.424,-98.493],["San Jose",32.715,-117.161],["Detroit",29.760,-95.369],["Jacksonville",29.324,-98.493],["Indianapolis",30.332,-81.655],["Columbus",39.768,-86.158],["Charlotte",35.227,-80.843],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Washington",38.907,-77.036],["Boston",42.360,-71.058],["El Paso",31.761,-106.485],["Nashville",35.227,-80.843],["Portland",45.515,-122.678],["Las Vegas",36.169,-115.139],["Louisville",36.162,-86.781],["Baltimore",39.290,-76.612],["Milwaukee",39.768,-86.158],["Albuquerque",31.761,-106.485],["Tucson",33.448,-112.074],["Fresno",36.746,-119.772],["Sacramento",37.338,-121.886],["Kansas City",39.099,-94.578],["Mesa",33.448,-112.074],["Atlanta",33.749,-84.387],["Omaha",39.099,-94.578],["Colorado Springs",39.739,-104.990],["Raleigh",35.227,-80.843],["Miami",25.761,-80.191],["Oakland",38.581,-121.494],["Minneapolis",43.038,-87.906],["Tulsa",32.222,-110.926],["Cleveland",39.961,-82.998],["Wichita",36.162,-86.781],["Arlington",32.735,-97.108],["New Orleans",29.951,-90.071],["Bakersfield",35.373,-119.018],["Tampa",25.761,-80.191],["Honolulu",32.715,-117.161]
+            ["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["Osaka",34.693,135.502],["New York",40.712,-74.006],["Karachi",24.86,67.001],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Kolkata",22.572,88.363],["Manila",14.599,120.984],["Lagos",6.524,3.379],["Rio de Janeiro",-22.906,-43.172],["Kinshasa",-4.441,15.266],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Lahore",31.52,74.358],["Bangalore",12.971,77.594],["Paris",48.856,2.352],["Bogota",4.711,-74.072],["Jakarta",-6.208,106.845],["Lima",-12.046,-77.028],["Bangkok",13.756,100.501],["Seoul",37.566,126.978],["London",51.507,-0.127],["Tehran",35.689,51.389],["Chicago",41.878,-87.629],["Ho Chi Minh City",10.823,106.629],["Luanda",-8.839,13.289],["Kuala Lumpur",3.139,101.686],["Hong Kong",22.319,114.169],["Riyadh",24.713,46.675],["Baghdad",33.315,44.361],["Santiago",-33.448,-70.669],["Madrid",40.416,-3.703],["Toronto",43.653,-79.383],["Miami",25.761,-80.191],["Singapore",1.352,103.819],["Philadelphia",39.952,-75.165],["Atlanta",33.749,-84.387],["Barcelona",41.385,2.173],["Johannesburg",-26.204,28.047],["St Petersburg",59.931,30.36],["Washington DC",38.907,-77.036],["Dubai",25.204,55.27],["Melbourne",-37.813,144.963],["Sydney",-33.868,151.209],["Nairobi",-1.292,36.821],["San Francisco",37.774,-122.419],["Algiers",36.752,3.042],["Kabul",34.528,69.111],["Ankara",39.92,32.854],["Boston",42.36,-71.058],["Rome",41.902,12.496],["Montreal",45.501,-73.567],["Athens",37.983,23.727],["Berlin",52.52,13.405],["Vienna",48.208,16.373],["Amsterdam",52.367,4.904],["Brussels",50.85,4.351],["Copenhagen",55.676,12.568],["Stockholm",59.329,18.068],["Oslo",59.913,10.752],["Helsinki",60.169,24.938],["Warsaw",52.229,21.012],["Prague",50.088,14.42],["Budapest",47.497,19.04],["Zurich",47.376,8.541],["Geneva",46.204,6.143],["Munich",48.135,11.582],["Frankfurt",50.11,8.682],["Hamburg",53.551,9.993],["Milan",45.464,9.19],["Venice",45.44,12.315],["Florence",43.769,11.259],["Naples",40.851,14.268],["Lisbon",38.722,-9.139],["Porto",41.157,-8.629],["Dublin",53.349,-6.26],["Edinburgh",55.953,-3.188],["Manchester",53.48,-2.242],["Birmingham",52.486,-1.89],["Liverpool",53.408,-2.981],["Glasgow",55.864,-4.251],["Belfast",54.597,-5.93],["Cardiff",51.481,-3.179],["Auckland",-36.848,174.763],["Wellington",-41.286,174.776],["Christchurch",-43.532,172.636],["Brisbane",-27.469,153.025],["Perth",-31.95,115.86],["Adelaide",-34.928,138.6],["Hobart",-42.882,147.327],["Darwin",-12.463,130.845],["Canberra",-35.28,149.13],["Cape Town",-33.924,18.424],["Pretoria",-25.747,28.229],["Durban",-29.858,31.021],["Accra",5.603,-0.187],["Addis Ababa",8.98,38.757],["Casablanca",33.573,-7.589],["Dakar",14.716,-17.467],["Vancouver",49.282,-123.120],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Houston",33.760,-95.369],["Dallas",29.760,-95.369],["Austin",32.776,-96.797],["Phoenix",30.267,-97.743],["Las Vegas",33.448,-112.074],["San Diego",32.715,-117.161],["San Antonio",29.424,-98.493],["San Jose",32.715,-117.161],["Detroit",29.760,-95.369],["Jacksonville",29.324,-98.493],["Indianapolis",30.332,-81.655],["Columbus",39.768,-86.158],["Charlotte",35.227,-80.843],["Washington",38.907,-77.036],["Boston",42.360,-71.058],["El Paso",31.761,-106.485],["Nashville",35.227,-80.843],["Portland",45.515,-122.678],["Louisville",36.162,-86.781],["Baltimore",39.290,-76.612],["Milwaukee",39.768,-86.158],["Albuquerque",31.761,-106.485],["Tucson",33.448,-112.074],["Fresno",36.746,-119.772],["Sacramento",37.338,-121.886],["Kansas City",39.099,-94.578],["Mesa",33.448,-112.074],["Omaha",39.099,-94.578],["Colorado Springs",39.739,-104.990],["Raleigh",35.227,-80.843],["Oakland",38.581,-121.494],["Minneapolis",43.038,-87.906],["Tulsa",32.222,-110.926],["Cleveland",39.961,-82.998],["Wichita",36.162,-86.781],["Arlington",32.735,-97.108],["New Orleans",29.951,-90.071],["Bakersfield",35.373,-119.018],["Tampa",25.761,-80.191],["Honolulu",32.715,-117.161]
         ],
         countries: [
             ["China",35.861,104.195,1412000000],["India",20.593,78.962,1417000000],["United States",37.09,-95.712,333000000],["Indonesia",-0.789,113.921,275000000],["Pakistan",30.375,69.345,235000000],["Nigeria",9.081,8.675,218000000],["Brazil",-14.235,-51.925,215000000],["Bangladesh",23.684,90.356,171000000],["Russia",61.524,105.318,144000000],["Mexico",23.634,-102.552,128000000],["Japan",36.204,138.252,125000000],["Ethiopia",9.145,40.489,123000000],["Philippines",12.879,121.774,115000000],["Egypt",26.82,30.802,110000000],["Vietnam",14.058,108.277,98000000],["DR Congo",-4.322,15.307,99000000],["Turkey",38.963,35.243,85000000],["Iran",32.427,53.688,88000000],["Germany",51.165,10.451,83000000],["Thailand",15.87,100.992,71000000],["United Kingdom",55.378,-3.435,67000000],["France",46.227,2.213,68000000],["Italy",41.871,12.567,58000000],["Tanzania",-6.369,34.888,65000000],["South Africa",-30.559,22.937,60000000],["Myanmar",14.058,108.277,54000000],["Kenya",-0.023,37.906,54000000],["South Korea",35.907,127.766,51000000],["Colombia",4.57,-74.297,51000000],["Spain",40.463,-3.749,47000000],["Uganda",1.373,32.29,47000000],["Argentina",-38.416,-63.616,46000000],["Algeria",28.033,1.659,44000000],["Sudan",16.126,30.217,46000000],["Ukraine",48.379,31.165,43000000],["Iraq",33.223,43.679,44000000],["Afghanistan",33.939,67.709,41000000],["Poland",51.919,19.145,38000000],["Canada",56.13,-106.346,38000000],["Morocco",31.791,-7.092,37000000],["Saudi Arabia",23.885,45.079,36000000],["Uzbekistan",41.377,64.585,35000000],["Peru",-9.189,-75.015,34000000],["Angola",-11.202,17.873,35000000],["Malaysia",4.21,101.975,33000000],["Mozambique",-11.202,17.873,32000000],["Ghana",7.946,-1.023,33000000],["Yemen",15.552,48.516,33000000],["Nepal",28.394,84.124,30000000],["Venezuela",9.081,-66.18,28000000],["Madagascar",-18.766,46.869,29000000],["Cameroon",3.848,11.502,27000000],["Ivory Coast",7.946,-1.023,28000000],["North Korea",40.339,127.51,26000000],["Australia",-25.274,133.775,26000000],["Niger",15.454,18.732,26000000],["Taiwan",23.697,120.96,23000000],["Sri Lanka",7.873,80.771,22000000],["Burkina Faso",12.238,-1.561,22000000],["Mali",17.57,-3.996,22000000],["Romania",45.943,24.966,19000000],["Malawi",-11.202,17.873,20000000],["Chile",-35.675,-71.542,19000000],["Kazakhstan",48.019,66.923,19000000],["Zambia",-13.133,27.849,19000000],["Guatemala",15.783,-90.23,17000000],["Ecuador",-1.831,-78.183,18000000],["Syria",34.802,38.996,22000000],["Netherlands",52.132,5.291,17000000],["Senegal",14.497,-14.452,17000000],["Cambodia",12.565,104.99,16000000],["Chad",15.454,18.732,17000000],["Somalia",5.152,46.199,17000000],["Zimbabwe",-19.015,29.154,16000000],["Guinea",7.946,-1.023,13000000],["Rwanda",-1.94,29.873,13000000],["Benin",9.307,2.315,13000000],["Burundi",-3.373,29.918,12000000],["Tunisia",33.886,9.537,12000000],["Bolivia",-16.29,-63.588,12000000],["Belgium",50.503,4.469,11000000],["Haiti",18.971,-72.285,11000000],["Cuba",21.521,-77.781,11000000],["South Sudan",16.126,30.217,11000000],["Dominican Republic",18.735,-70.162,11000000],["Czechia",49.817,15.472,10000000],["Greece",39.074,21.824,10000000],["Jordan",30.585,36.238,11000000],["Portugal",39.399,-8.224,10000000],["Azerbaijan",40.143,47.576,10000000],["Sweden",60.128,18.643,10000000],["Honduras",15.199,-86.241,10000000],["United Arab Emirates",23.424,53.847,9000000],["Hungary",47.162,19.503,9000000],["Tajikistan",41.377,64.585,9000000],["Belarus",53.709,27.953,9000000],["Austria",47.516,14.55,9000000],["Papua New Guinea",-5.78,145.03,9000000],["Serbia",44.016,21.005,8000000],["Israel",31.046,34.851,9000000],["Switzerland",46.818,8.227,8000000],["Togo",9.307,2.315,8000000],["Sierra Leone",14.497,-14.452,8000000],["Hong Kong",22.319,114.169,7000000],["Laos",12.565,104.99,7000000],["Paraguay",-23.442,-58.443,7000000],["Bulgaria",42.733,25.485,6000000],["Libya",26.335,17.228,6000000],["Lebanon",33.854,35.862,6000000],["Nicaragua",15.199,-86.241,6000000],["Kyrgyzstan",41.377,64.585,6000000],["El Salvador",13.794,-88.896,6000000],["Turkmenistan",41.377,64.585,6000000],["Singapore",1.352,103.819,5000000],["Denmark",56.263,9.501,5000000],["Finland",61.924,25.748,5000000],["Congo",-4.322,15.307,5000000],["Slovakia",48.669,19.699,5000000],["Norway",60.472,8.468,5000000],["Oman",21.512,55.923,4000000],["State of Palestine",31.046,34.851,4000000],["Costa Rica",9.748,-83.753,5000000],["Liberia",14.497,-14.452,5000000],["Ireland",53.412,-8.243,5000000],["Central African Republic",15.454,18.732,5000000],["New Zealand",-40.90,174.885,5000000],["Mauritania",17.57,-3.996,4000000],["Panama",8.537,-80.782,4000000],["Kuwait",29.311,47.481,4000000],["Croatia",45.1,-15.2,4000000],["Moldova",45.943,24.966,4000000],["Georgia",42.315,43.356,3000000],["Eritrea",16.126,30.217,3000000],["Uruguay",-32.522,-55.765,3000000],["Bosnia and Herzegovina",43.915,17.679,3000000],["Mongolia",46.862,103.846,3000000],["Armenia",40.069,45.038,3000000],["Jamaica",18.109,-77.297,2000000],["Qatar",25.354,51.183,2000000],["Albania",41.153,20.168,2000000],["Lithuania",55.169,23.881,2000000],["Namibia",-11.202,17.873,2000000],["Gambia",14.497,-14.452,2000000],["Botswana",-22.328,24.684,2000000],["Gabon",9.307,2.315,2000000],["Lesotho",-22.328,24.684,2000000],["North Macedonia",42.733,25.485,2000000],["Slovenia",46.151,14.995,2000000],["Guinea-Bissau",14.497,-14.452,2000000],["Latvia",55.169,23.881,1000000],["Bahrain",25.93,50.637,1000000],["Equatorial Guinea",9.307,2.315,1000000],["Trinidad and Tobago",18.735,-70.162,1000000],["Estonia",58.595,25.013,1000000],["Timor-Leste",-5.78,145.03,1000000],["Mauritius",-18.766,46.869,1000000],["Cyprus",35.126,33.429,1000000],["Eswatini",-30.559,22.937,1000000],["Djibouti",11.825,42.59,1000000],["Fiji",-17.713,178.065,900000],["Comoros",11.825,42.59,800000],["Guyana",13.193,-59.543,700000],["Bhutan",27.514,90.433,700000],["Solomon Islands",-5.78,145.03,700000],["Macau",22.319,114.169,600000],["Montenegro",42.733,25.485,600000],["Luxembourg",49.815,6.129,600000],["Suriname",13.193,-59.543,500000],["Cabo Verde",14.497,-14.452,500000],["Malta",35.126,33.429,500000],["Brunei",4.535,114.727,400000],["Belize",17.189,-88.497,400000],["Bahamas",25.034,-77.396,300000],["Iceland",64.963,-19.02,300000],["Vanuatu",-17.713,178.065,300000],["Barbados",13.193,-59.543,200000],["Sao Tome and Principe",9.307,2.315,200000],["Samoa",-17.713,178.065,200000],["Saint Lucia",13.193,-59.543,100000]
@@ -354,9 +356,9 @@
         players = [];
         for(let i=1; i<=4; i++) {
             const name = document.getElementById(`p${i}`).value.trim();
-            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
+            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
         }
-        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
+        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
 
         totalRounds = parseInt(document.getElementById('local-round-select').value);
         timeLimit = parseInt(document.getElementById('local-timer-select').value);
@@ -394,7 +396,7 @@
             myId = id;
             if(isHost && !customCode) {
                 players = []; 
-                players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
+                players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
                 targetRoomCode = codeToUse;
             }
             if(onOpen) onOpen(id);
@@ -560,7 +562,7 @@
                 existingPlayer.online = true; existingPlayer.connId = conn.peer;
                 conn.send({ type: 'SYNC_STATE', state: buildGameState() });
             } else {
-                players.push({ id: data.id, connId: conn.peer, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null });
+                players.push({ id: data.id, connId: conn.peer, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
             }
             updateLobbyUI(); broadcastStateUpdate(); saveHostState();
         }
@@ -649,7 +651,7 @@
     }
     
     function playAgain() {
-        players.forEach(p => { p.totalScore = 0; p.roundScore = 0; p.bonusScore = 0; p.roundDist = 0; p.lastGuess = null; p.hasGuessed = false; p.timeTaken = 0; p.guessedPop = null; });
+        players.forEach(p => { p.totalScore = 0; p.roundScore = 0; p.bonusScore = 0; p.roundDist = 0; p.lastGuess = null; p.hasGuessed = false; p.timeTaken = 0; p.guessedPop = null; p.guessedCountryName = null; });
         if (mode === 'online' && isHost) {
             broadcast({ type: 'RETURN_TO_LOBBY', players: players });
             navTo('lobby-screen');
@@ -662,7 +664,9 @@
     function initMap() {
         if (map !== null) map.remove();
         map = L.map('map', { center: [20, 0], zoom: 2, zoomControl: false });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        
+        // CartoDB Voyager: Clean, bright map with highly visible distinct country borders
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19
         }).addTo(map);
 
@@ -761,7 +765,7 @@
         document.getElementById('waiting-list').innerHTML = "";
 
         for (let p of players) {
-            p.bonusScore = 0; p.guessedPop = null;
+            p.bonusScore = 0; p.guessedPop = null; p.guessedCountryName = null;
             if (!p.lastGuess) {
                 p.roundDist = 99999; p.roundScore = 0; continue;
             }
@@ -781,7 +785,6 @@
                     if (c && t && (t.includes(c) || c.includes(t))) {
                         p.roundScore = 5000; continue; 
                     } else if (c) {
-                        // Wrong country guessed, find its population in our DB
                         let guessedDbCountry = db.population.find(dbC => {
                             let dbName = dbC.name.toLowerCase().replace(/[^a-z]/g, '');
                             return dbName.includes(c) || c.includes(dbName);
@@ -792,12 +795,12 @@
                             let maxPop = Math.max(currentTarget.pop, guessedDbCountry.pop);
                             p.roundScore = Math.floor(5000 * (minPop / maxPop));
                             p.guessedPop = guessedDbCountry.pop;
+                            p.guessedCountryName = guessedDbCountry.name;
                             continue;
                         }
                     }
                 } catch (e) { console.warn("API Geocode failed"); }
                 
-                // Hit ocean or API failed
                 p.roundScore = 0;
                 
             } else if (gameCategory === 'countries') {
@@ -865,7 +868,7 @@
             
             if (gameCategory === 'population') {
                 if (p.roundScore >= 5000) distText = "Exact Country!";
-                else if (p.guessedPop) distText = `Guessed pop: ${p.guessedPop.toLocaleString()}`;
+                else if (p.guessedPop) distText = `${p.guessedCountryName} (${p.guessedPop.toLocaleString()})`;
                 else distText = p.lastGuess ? "Ocean / Unknown" : "No guess";
             } else {
                 distText = p.lastGuess ? `${Math.round(p.roundDist).toLocaleString()} km` : "No guess";
@@ -886,7 +889,7 @@
 
         if (resultMap === null) {
             resultMap = L.map('result-map', { zoomControl: false });
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(resultMap);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(resultMap);
         }
 
         resultMarkers.forEach(m => resultMap.removeLayer(m));
