@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>GeoPin Multiplayer</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg: #1e1e2e;
+            --surface: #313244;
+            --text: #cdd6f4;
+            --primary: #89b4fa;
+            --success: #a6e3a1;
+            --accent: #f38ba8;
+        }
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior-y: contain; 
+        }
+        .screen {
+            display: none;
+            height: 100%;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .active { display: flex; }
+        
+        h1, h2, h3 { text-align: center; margin: 10px 0; }
+        
+        .config-group {
+            width: 90%;
+            max-width: 350px;
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 6px 0;
+            border-radius: 8px;
+            border: 1px solid #45475a;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input, select { background: var(--bg); color: var(--text); }
+        
+        button {
+            background-color: var(--primary);
+            color: #11111b;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 15px;
+            padding: 15px;
+        }
+        button:active { opacity: 0.7; }
+        .btn-success { background-color: var(--success); }
+
+        #map-container, #result-map-container {
+            width: 100%;
+            flex-grow: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+            border: 2px solid var(--surface);
+        }
+        #result-map-container { margin-bottom: 10px; }
+        
+        /* Updated map background to a lighter color so it blends with the light tiles */
+        #map, #result-map { width: 100%; height: 100%; background: #e6e9ef; }
+        
+        .top-bar {
+            width: 100%;
+            text-align: center;
+            background: var(--surface);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        .target-location { font-size: 26px; font-weight: bold; color: var(--accent); margin: 5px 0;}
+        
+        .leaderboard {
+            width: 100%; max-width: 350px;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        .score-row {
+            display: flex; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid #45475a;
+        }
+        .score-row:last-child { border-bottom: none; }
+
+        /* Map Overlay Scoreboard */
+        .map-overlay-scoreboard {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(49, 50, 68, 0.95);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            border: 1px solid #45475a;
+            max-width: 200px;
+        }
+        .overlay-score-row {
+            display: flex; justify-content: space-between;
+            font-size: 13px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .overlay-score-row:last-child { border-bottom: none; }
+
+        /* Custom Map Pins */
+        .player-pin {
+            background-color: var(--primary);
+            color: #11111b;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .target-pin {
+            background-color: var(--success);
+            color: #11111b;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 0 10px rgba(166, 227, 161, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="screen active">
+        <h1>📍 GeoPin</h1>
+        
+        <div class="config-group">
+            <h3>Players</h3>
+            <input type="text" id="p1" placeholder="Player 1 Name (Required)">
+            <input type="text" id="p2" placeholder="Player 2 Name (Optional)">
+            <input type="text" id="p3" placeholder="Player 3 Name (Optional)">
+            <input type="text" id="p4" placeholder="Player 4 Name (Optional)">
+        </div>
+
+        <div class="config-group">
+            <h3>Game Settings</h3>
+            <label for="mode-select">Category:</label>
+            <select id="mode-select">
+                <option value="cities">Cities (120+)</option>
+                <option value="countries">Countries (120+)</option>
+                <option value="mountains">Mountains (60+)</option>
+                <option value="landmarks">Landmarks (60+)</option>
+            </select>
+
+            <label for="round-select">Rounds:</label>
+            <select id="round-select">
+                <option value="3">3 Rounds</option>
+                <option value="5">5 Rounds</option>
+                <option value="7">7 Rounds</option>
+                <option value="10">10 Rounds</option>
+                <option value="20">20 Rounds</option>
+            </select>
+        </div>
+
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div id="pass-screen" class="screen">
+        <h1 style="margin-top: 25vh;">Round <span id="pass-round"></span></h1>
+        <h2>Turn: <span id="pass-player-name" style="color: var(--primary); font-size: 32px;"></span></h2>
+        <p style="text-align: center; margin-bottom: 40px;">Pass the phone to this player.<br>Make sure they don't see where you guessed!</p>
+        <button onclick="startTurn()">I'm Ready!</button>
+    </div>
+
+    <div id="game-screen" class="screen" style="padding: 10px;">
+        <div class="top-bar">
+            <div style="font-size: 14px; color: var(--text);">Round <span id="ui-round">1</span> | <span id="ui-player" style="font-weight: bold; color: var(--primary);">Player</span>'s Turn</div>
+            <div style="margin-top: 5px;">Find:</div>
+            <div class="target-location" id="ui-target">Target</div>
+        </div>
+        
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <button id="confirm-btn" class="btn-success" onclick="confirmGuess()" style="display: none; margin-bottom: 0;">Confirm Pin</button>
+    </div>
+
+    <div id="round-map-screen" class="screen" style="padding: 10px;">
+        <div class="top-bar" style="padding: 10px;">
+            <div style="font-size: 14px; color: var(--text);">Round <span id="map-res-round">1</span> Results</div>
+            <div class="target-location" id="map-res-target" style="font-size: 20px;">Target</div>
+        </div>
+        
+        <div id="result-map-container">
+            <div id="map-scoreboard-overlay" class="map-overlay-scoreboard">
+                </div>
+            <div id="result-map"></div>
+        </div>
+        
+        <button onclick="nextRoundOrFinish()" style="margin-bottom: 0;">Continue to Next Round</button>
+    </div>
+
+    <div id="final-results-screen" class="screen">
+        <h1 style="color: var(--success); font-size: 40px;">Game Over!</h1>
+        <h2>Final Scoreboard</h2>
+        
+        <div class="leaderboard" id="final-leaderboard">
+            </div>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+<script>
+    // --- MASSIVE COMPRESSED DATABASE ---
+    const rawDb = {
+        cities: [
+            ["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["Osaka",34.693,135.502],["New York",40.712,-74.006],["Karachi",24.86,67.001],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Kolkata",22.572,88.363],["Manila",14.599,120.984],["Lagos",6.524,3.379],["Rio de Janeiro",-22.906,-43.172],["Kinshasa",-4.441,15.266],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Lahore",31.52,74.358],["Bangalore",12.971,77.594],["Paris",48.856,2.352],["Bogota",4.711,-74.072],["Jakarta",-6.208,106.845],["Lima",-12.046,-77.028],["Bangkok",13.756,100.501],["Seoul",37.566,126.978],["London",51.507,-0.127],["Tehran",35.689,51.389],["Chicago",41.878,-87.629],["Ho Chi Minh City",10.823,106.629],["Luanda",-8.839,13.289],["Kuala Lumpur",3.139,101.686],["Hong Kong",22.319,114.169],["Riyadh",24.713,46.675],["Baghdad",33.315,44.361],["Santiago",-33.448,-70.669],["Madrid",40.416,-3.703],["Toronto",43.653,-79.383],["Miami",25.761,-80.191],["Singapore",1.352,103.819],["Philadelphia",39.952,-75.165],["Atlanta",33.749,-84.387],["Barcelona",41.385,2.173],["Johannesburg",-26.204,28.047],["St Petersburg",59.931,30.36],["Washington DC",38.907,-77.036],["Dubai",25.204,55.27],["Melbourne",-37.813,144.963],["Sydney",-33.868,151.209],["Nairobi",-1.292,36.821],["San Francisco",37.774,-122.419],["Algiers",36.752,3.042],["Kabul",34.528,69.111],["Ankara",39.92,32.854],["Boston",42.36,-71.058],["Rome",41.902,12.496],["Montreal",45.501,-73.567],["Athens",37.983,23.727],["Berlin",52.52,13.405],["Vienna",48.208,16.373],["Amsterdam",52.367,4.904],["Brussels",50.85,4.351],["Copenhagen",55.676,12.568],["Stockholm",59.329,18.068],["Oslo",59.913,10.752],["Helsinki",60.169,24.938],["Warsaw",52.229,21.012],["Prague",50.088,14.42],["Budapest",47.497,19.04],["Zurich",47.376,8.541],["Geneva",46.204,6.143],["Munich",48.135,11.582],["Frankfurt",50.11,8.682],["Hamburg",53.551,9.993],["Milan",45.464,9.19],["Venice",45.44,12.315],["Florence",43.769,11.259],["Naples",40.851,14.268],["Lisbon",38.722,-9.139],["Porto",41.157,-8.629],["Dublin",53.349,-6.26],["Edinburgh",55.953,-3.188],["Manchester",53.48,-2.242],["Birmingham",52.486,-1.89],["Liverpool",53.408,-2.981],["Glasgow",55.864,-4.251],["Belfast",54.597,-5.93],["Cardiff",51.481,-3.179],["Auckland",-36.848,174.763],["Wellington",-41.286,174.776],["Christchurch",-43.532,172.636],["Brisbane",-27.469,153.025],["Perth",-31.95,115.86],["Adelaide",-34.928,138.6],["Hobart",-42.882,147.327],["Darwin",-12.463,130.845],["Canberra",-35.28,149.13],["Cape Town",-33.924,18.424],["Pretoria",-25.747,28.229],["Durban",-29.858,31.021],["Accra",5.603,-0.187],["Addis Ababa",8.98,38.757],["Casablanca",33.573,-7.589],["Dakar",14.716,-17.467]
+        ],
+        countries: [
+            ["Afghanistan",33.939,67.709],["Albania",41.153,20.168],["Algeria",28.033,1.659],["Andorra",42.506,1.521],["Angola",-11.202,17.873],["Argentina",-38.416,-63.616],["Armenia",40.069,45.038],["Australia",-25.274,133.775],["Austria",47.516,14.55],["Azerbaijan",40.143,47.576],["Bahamas",25.034,-77.396],["Bahrain",25.93,50.637],["Bangladesh",23.684,90.356],["Barbados",13.193,-59.543],["Belarus",53.709,27.953],["Belgium",50.503,4.469],["Belize",17.189,-88.497],["Benin",9.307,2.315],["Bhutan",27.514,90.433],["Bolivia",-16.29,-63.588],["Bosnia and Herzegovina",43.915,17.679],["Botswana",-22.328,24.684],["Brazil",-14.235,-51.925],["Brunei",4.535,114.727],["Bulgaria",42.733,25.485],["Burkina Faso",12.238,-1.561],["Burundi",-3.373,29.918],["Cambodia",12.565,104.99],["Cameroon",3.848,11.502],["Canada",56.13,-106.346],["Chad",15.454,18.732],["Chile",-35.675,-71.542],["China",35.861,104.195],["Colombia",4.57,-74.297],["Costa Rica",9.748,-83.753],["Croatia",45.1,-15.2],["Cuba",21.521,-77.781],["Cyprus",35.126,33.429],["Czechia",49.817,15.472],["Denmark",56.263,9.501],["Djibouti",11.825,42.59],["Dominican Republic",18.735,-70.162],["Ecuador",-1.831,-78.183],["Egypt",26.82,30.802],["El Salvador",13.794,-88.896],["Estonia",58.595,25.013],["Ethiopia",9.145,40.489],["Fiji",-17.713,178.065],["Finland",61.924,25.748],["France",46.227,2.213],["Georgia",42.315,43.356],["Germany",51.165,10.451],["Ghana",7.946,-1.023],["Greece",39.074,21.824],["Guatemala",15.783,-90.23],["Haiti",18.971,-72.285],["Honduras",15.199,-86.241],["Hungary",47.162,19.503],["Iceland",64.963,-19.02],["India",20.593,78.962],["Indonesia",-0.789,113.921],["Iran",32.427,53.688],["Iraq",33.223,43.679],["Ireland",53.412,-8.243],["Israel",31.046,34.851],["Italy",41.871,12.567],["Jamaica",18.109,-77.297],["Japan",36.204,138.252],["Jordan",30.585,36.238],["Kazakhstan",48.019,66.923],["Kenya",-0.023,37.906],["Kuwait",29.311,47.481],["Lebanon",33.854,35.862],["Libya",26.335,17.228],["Lithuania",55.169,23.881],["Luxembourg",49.815,6.129],["Madagascar",-18.766,46.869],["Malaysia",4.21,101.975],["Mali",17.57,-3.996],["Mexico",23.634,-102.552],["Mongolia",46.862,103.846],["Morocco",31.791,-7.092],["Nepal",28.394,84.124],["Netherlands",52.132,5.291],["New Zealand",-40.90,174.885],["Nigeria",9.081,8.675],["Norway",60.472,8.468],["Oman",21.512,55.923],["Pakistan",30.375,69.345],["Panama",8.537,-80.782],["Paraguay",-23.442,-58.443],["Peru",-9.189,-75.015],["Philippines",12.879,121.774],["Poland",51.919,19.145],["Portugal",39.399,-8.224],["Qatar",25.354,51.183],["Romania",45.943,24.966],["Russia",61.524,105.318],["Rwanda",-1.94,29.873],["Saudi Arabia",23.885,45.079],["Senegal",14.497,-14.452],["Serbia",44.016,21.005],["Singapore",1.352,103.819],["Slovakia",48.669,19.699],["Slovenia",46.151,14.995],["Somalia",5.152,46.199],["South Africa",-30.559,22.937],["South Korea",35.907,127.766],["Spain",40.463,-3.749],["Sri Lanka",7.873,80.771],["Sudan",16.126,30.217],["Sweden",60.128,18.643],["Switzerland",46.818,8.227],["Syria",34.802,38.996],["Taiwan",23.697,120.96],["Tanzania",-6.369,34.888],["Thailand",15.87,100.992],["Tunisia",33.886,9.537],["Turkey",38.963,35.243],["Uganda",1.373,32.29],["Ukraine",48.379,31.165],["United Arab Emirates",23.424,53.847],["United Kingdom",55.378,-3.435],["United States",37.09,-95.712],["Uruguay",-32.522,-55.765],["Uzbekistan",41.377,64.585],["Venezuela",9.081,-66.18],["Vietnam",14.058,108.277],["Yemen",15.552,48.516],["Zambia",-13.133,27.849],["Zimbabwe",-19.015,29.154]
+        ],
+        mountains: [
+            ["Mount Everest",27.988,86.925],["K2",35.881,76.515],["Kangchenjunga",27.702,88.147],["Lhotse",27.961,86.933],["Makalu",27.889,87.088],["Cho Oyu",28.094,86.66],["Dhaulagiri",28.698,83.487],["Manaslu",28.549,84.559],["Nanga Parbat",35.237,74.589],["Annapurna",28.596,83.82],["Gasherbrum I",35.724,76.676],["Broad Peak",35.811,76.568],["Gasherbrum II",35.758,76.653],["Shishapangma",28.352,85.779],["Denali",63.069,-151.007],["Mount Logan",60.567,-140.405],["Pico de Orizaba",19.03,-97.269],["Mount Saint Elias",60.293,-140.93],["Popocatepetl",19.022,-98.627],["Mount Foraker",62.96,-151.399],["Mount Whitney",36.578,-118.292],["Mount Elbert",39.117,-106.445],["Mount Rainier",46.852,-121.76],["Mount Shasta",41.409,-122.194],["Aconcagua",-32.653,-70.01],["Ojos del Salado",-27.109,-68.54],["Huascaran",-9.122,-77.605],["Llullaillaco",-24.718,-68.531],["Chimborazo",-1.469,-78.816],["Cotopaxi",-0.677,-78.436],["Mount Elbrus",43.349,42.445],["Mont Blanc",45.832,6.865],["Monte Rosa",45.936,7.866],["Dom",46.094,7.858],["Matterhorn",45.976,7.658],["Mount Kilimanjaro",-3.067,37.355],["Mount Kenya",-0.15,37.3],["Mount Stanley",0.383,29.873],["Mount Meru",-3.24,36.75],["Mount Toubkal",31.06,-7.915],["Vinson Massif",-78.525,-85.617],["Mount Tyree",-78.404,-85.43],["Puncak Jaya",-4.078,137.164],["Mount Wilhelm",-5.78,145.03],["Mount Kosciuszko",-36.455,148.263],["Mount Fuji",35.36,138.727],["Aoraki / Mount Cook",-43.595,170.141],["Mount Ruapehu",-39.281,175.564],["Table Mountain",-33.962,18.409],["Ben Nevis",56.796,-5.003],["Mount Olympus",40.084,22.355],["Mount Ararat",39.702,44.297],["Mount Sinai",28.539,33.975],["Teide",28.272,-16.642],["Mount Etna",37.751,14.993],["Mount Vesuvius",40.822,14.426]
+        ],
+        landmarks: [
+            ["Eiffel Tower",48.858,2.294],["Statue of Liberty",40.689,-74.044],["Taj Mahal",27.175,78.042],["Colosseum",41.89,12.492],["Machu Picchu",-13.163,-72.545],["Pyramids of Giza",29.979,31.134],["Great Wall of China",40.431,116.57],["Stonehenge",51.178,-1.826],["Christ the Redeemer",-22.951,-43.21],["Petra",30.328,35.444],["Acropolis of Athens",37.971,23.725],["Angkor Wat",13.412,103.866],["Chichen Itza",20.684,-88.567],["Sagrada Familia",41.403,2.174],["Sydney Opera House",-33.856,151.215],["Big Ben",51.50,-0.124],["Mount Rushmore",43.879,-103.459],["Golden Gate Bridge",37.819,-122.478],["Burj Khalifa",25.197,55.274],["Louvre Museum",48.86,2.337],["Alhambra",37.177,-3.588],["Potala Palace",29.657,91.116],["Tokyo Tower",35.658,139.745],["Buckingham Palace",51.501,-0.141],["Neuschwanstein Castle",47.557,10.749],["Hagia Sophia",41.008,28.979],["Forbidden City",39.916,116.39],["St. Basil's Cathedral",55.752,37.623],["CN Tower",43.642,-79.387],["Empire State Building",40.748,-73.985],["Tower Bridge",51.505,-0.075],["Alcatraz Island",37.826,-122.423],["Pompeii",40.749,14.484],["Leaning Tower of Pisa",43.722,10.396],["Trevi Fountain",41.9,12.483],["Pantheon",41.898,12.476],["St. Peter's Basilica",41.902,12.453],["Sistine Chapel",41.902,12.454],["Grand Canyon Skywalk",36.012,-113.811],["Niagara Falls",43.082,-79.074],["Victoria Falls",-17.924,25.857],["Sydney Harbour Bridge",-33.852,151.21],["Uluru",-25.344,131.036],["London Eye",51.503,-0.119],["Edinburgh Castle",55.948,-3.199],["Palace of Versailles",48.804,2.12],["Mont Saint-Michel",48.636,-1.511],["Notre-Dame de Paris",48.852,2.349],["Arc de Triomphe",48.873,2.295],["Luxor Temple",25.699,32.639],["Western Wall",31.776,35.234],["Dome of the Rock",31.778,35.235],["Blue Mosque",41.005,28.976],["Grand Bazaar",41.01,28.968],["Galata Tower",41.025,28.974],["Fushimi Inari Taisha",34.967,135.772],["Kinkaku-ji",35.039,135.729],["Senso-ji",35.714,139.796],["Itsukushima Shrine",34.295,132.319],["Osaka Castle",34.687,135.526],["Meiji Shrine",35.676,139.699],["Burj Al Arab",25.141,55.185],["Palm Jumeirah",25.112,55.139]
+        ]
+    };
+
+    const db = {};
+    for (let key in rawDb) {
+        db[key] = rawDb[key].map(item => ({ name: item[0], lat: item[1], lng: item[2] }));
+    }
+
+    // --- GAME STATE ---
+    let players = [];
+    let totalRounds = 3;
+    let currentRound = 1;
+    let currentPlayerIndex = 0;
+    let currentLocations = [];
+    let currentTarget = null;
+    
+    // Map States
+    let map = null;
+    let currentMarker = null;
+    let currentGuess = null;
+
+    let resultMap = null;
+    let resultMarkers = [];
+
+    // --- LOGIC ---
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function startGame() {
+        players = [];
+        for(let i=1; i<=4; i++) {
+            const name = document.getElementById(`p${i}`).value.trim();
+            if(name) players.push({ name: name, totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+        }
+        
+        if(players.length === 0) players.push({ name: "Player 1", totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+
+        const requestedRounds = parseInt(document.getElementById('round-select').value);
+        const mode = document.getElementById('mode-select').value;
+        
+        currentLocations = [...db[mode]].sort(() => 0.5 - Math.random());
+        totalRounds = Math.min(requestedRounds, currentLocations.length); 
+        currentRound = 1;
+        
+        initMap();
+        setupRound();
+    }
+
+    function initMap() {
+        if (map !== null) { map.remove(); }
+        
+        map = L.map('map', { center: [20, 0], zoom: 2, zoomControl: false });
+        
+        // Switched to LIGHT no-labels tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+        }).addTo(map);
+
+        map.on('click', function(e) {
+            currentGuess = e.latlng;
+            if (currentMarker) map.removeLayer(currentMarker);
+            currentMarker = L.marker(currentGuess).addTo(map);
+            document.getElementById('confirm-btn').style.display = 'block';
+        });
+    }
+
+    function setupRound() {
+        currentTarget = currentLocations[currentRound - 1];
+        currentPlayerIndex = 0;
+        showPassScreen();
+    }
+
+    function showPassScreen() {
+        document.getElementById('pass-round').innerText = currentRound;
+        document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name;
+        switchScreen('pass-screen');
+    }
+
+    function startTurn() {
+        switchScreen('game-screen');
+        document.getElementById('ui-round').innerText = currentRound + " / " + totalRounds;
+        document.getElementById('ui-player').innerText = players[currentPlayerIndex].name;
+        document.getElementById('ui-target').innerText = currentTarget.name;
+        
+        if (currentMarker) map.removeLayer(currentMarker);
+        currentGuess = null;
+        document.getElementById('confirm-btn').style.display = 'none';
+        map.setView([20, 0], 2); 
+        setTimeout(() => map.invalidateSize(), 100); 
+    }
+
+    function confirmGuess() {
+        const player = players[currentPlayerIndex];
+        const distKm = getDistanceFromLatLonInKm(currentGuess.lat, currentGuess.lng, currentTarget.lat, currentTarget.lng);
+        
+        let score = 0;
+        if (distKm <= 30) {
+            score = 5000;
+        } else {
+            score = Math.floor(5000 * Math.exp(-distKm / 2500)); 
+            if (score < 0) score = 0;
+        }
+
+        player.roundScore = score;
+        player.roundDist = distKm;
+        player.totalScore += score;
+        player.lastGuess = { lat: currentGuess.lat, lng: currentGuess.lng }; 
+
+        currentPlayerIndex++;
+        
+        if (currentPlayerIndex < players.length) {
+            showPassScreen();
+        } else {
+            showRoundMapResults();
+        }
+    }
+
+    function showRoundMapResults() {
+        switchScreen('round-map-screen');
+        document.getElementById('map-res-round').innerText = currentRound;
+        document.getElementById('map-res-target').innerText = currentTarget.name;
+
+        // Populate Scoreboard Overlay
+        const sorted = [...players].sort((a, b) => b.roundScore - a.roundScore);
+        const overlay = document.getElementById('map-scoreboard-overlay');
+        overlay.innerHTML = `<div style="font-weight:bold; color:var(--primary); margin-bottom:8px; border-bottom:1px solid #45475a; padding-bottom:4px;">Scores</div>`;
+        sorted.forEach((p, idx) => {
+            let shortName = p.name.length > 8 ? p.name.substring(0, 7) + '..' : p.name;
+            overlay.innerHTML += `
+                <div class="overlay-score-row">
+                    <div><b>${idx+1}. ${shortName}</b><br><small style="color:#a6adc8;">${Math.round(p.roundDist).toLocaleString()} km</small></div>
+                    <div style="color: var(--success); font-weight: bold; margin-left: 10px;">+${p.roundScore}</div>
+                </div>
+            `;
+        });
+
+        // Initialize Result Map with LIGHT tiles
+        if (resultMap === null) {
+            resultMap = L.map('result-map', { zoomControl: false });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(resultMap);
+        }
+
+        // Clean up previous round
+        resultMarkers.forEach(m => resultMap.removeLayer(m));
+        resultMarkers = [];
+
+        let boundsArr = [];
+
+        // Add Target Marker
+        const targetIcon = L.divIcon({
+            className: 'target-pin',
+            html: '📍',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+        });
+        const targetM = L.marker([currentTarget.lat, currentTarget.lng], {icon: targetIcon}).addTo(resultMap);
+        resultMarkers.push(targetM);
+        boundsArr.push([currentTarget.lat, currentTarget.lng]);
+
+        // Add Player Markers & Dotted Lines
+        players.forEach(p => {
+            if(p.lastGuess) {
+                const initials = p.name.substring(0, 2).toUpperCase();
+                const pIcon = L.divIcon({
+                    className: 'player-pin',
+                    html: initials,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                const pM = L.marker([p.lastGuess.lat, p.lastGuess.lng], {icon: pIcon}).addTo(resultMap);
+                resultMarkers.push(pM);
+                boundsArr.push([p.lastGuess.lat, p.lastGuess.lng]);
+
+                // Dark dotted line for high contrast against the light map
+                const flightPath = L.polyline([
+                    [p.lastGuess.lat, p.lastGuess.lng],
+                    [currentTarget.lat, currentTarget.lng]
+                ], {
+                    color: '#11111b', 
+                    weight: 2,
+                    dashArray: '5, 8',
+                    opacity: 0.8
+                }).addTo(resultMap);
+                resultMarkers.push(flightPath);
+            }
+        });
+
+        setTimeout(() => {
+            resultMap.invalidateSize();
+            resultMap.fitBounds(boundsArr, { paddingTopLeft: [220, 20], paddingBottomRight: [20, 20], maxZoom: 10 });
+        }, 100);
+    }
+
+    function nextRoundOrFinish() {
+        currentRound++;
+        if (currentRound > totalRounds) {
+            showFinalResults();
+        } else {
+            setupRound();
+        }
+    }
+
+    function showFinalResults() {
+        switchScreen('final-results-screen');
+        const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore);
+        const board = document.getElementById('final-leaderboard');
+        board.innerHTML = '';
+        sorted.forEach((p, idx) => {
+            const medal = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : ''));
+            board.innerHTML += `
+                <div class="score-row">
+                    <div style="font-size: 20px;">${medal} <b>${p.name}</b></div>
+                    <div style="color: var(--success); font-size: 22px; font-weight: bold;">${p.totalScore.toLocaleString()}</div>
+                </div>
+            `;
+        });
+    }
+
+    function resetGame() {
+        document.getElementById('p1').value = '';
+        document.getElementById('p2').value = '';
+        document.getElementById('p3').value = '';
+        document.getElementById('p4').value = '';
+        switchScreen('setup-screen');
+    }
+
+    // --- UTILS ---
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371; 
+      const dLat = deg2rad(lat2-lat1);
+      const dLon = deg2rad(lon2-lon1); 
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+      return R * c; 
+    }
+    function deg2rad(deg) { return deg * (Math.PI/180); }
+</script>
+
+</body>
+</html>
