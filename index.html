@@ -81,7 +81,7 @@
         .map-overlay-scoreboard {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
             background: rgba(49, 50, 68, 0.95); padding: 10px; border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 250px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 260px;
         }
         .overlay-score-row {
             display: flex; justify-content: space-between; font-size: 13px;
@@ -104,20 +104,24 @@
             position: absolute; top:0; left:0; width:100%; height:100%;
             background: rgba(30, 30, 46, 0.95); color: white; z-index: 2000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            display: none; box-sizing: border-box; padding: 20px;
+            display: none; box-sizing: border-box; padding: 20px; text-align: center;
         }
+        .offline-tag { color: var(--accent); font-size: 12px; font-weight: bold; margin-left: 5px; }
     </style>
 </head>
 <body>
 
+    <!-- HOME MENU -->
     <div id="home-screen" class="screen active">
         <h1 style="margin-top: 10vh; font-size: 40px;">📍 GeoPin</h1>
         <div class="config-group" style="margin-top: 30px;">
             <button onclick="navTo('local-setup-screen')">Pass & Play (Local)</button>
             <button onclick="navTo('online-menu-screen')" class="btn-success">Online Multiplayer</button>
+            <button id="resume-btn" onclick="resumeHostRoom()" class="btn-warning" style="display: none; background-color: var(--warning); color: #11111b; margin-top: 20px;">Resume Hosted Game</button>
         </div>
     </div>
 
+    <!-- LOCAL SETUP SCREEN -->
     <div id="local-setup-screen" class="screen">
         <h1>Pass & Play</h1>
         <div class="config-group">
@@ -130,6 +134,7 @@
             <select id="local-mode-select">
                 <option value="cities">Cities</option>
                 <option value="countries">Countries</option>
+                <option value="population">Population (Countries)</option>
                 <option value="mountains">Mountains</option>
                 <option value="landmarks">Landmarks</option>
             </select>
@@ -149,6 +154,7 @@
         <button onclick="navTo('home-screen')" class="btn-secondary">Back</button>
     </div>
 
+    <!-- ONLINE MENU SCREEN -->
     <div id="online-menu-screen" class="screen">
         <h1>Online Play</h1>
         <div class="config-group">
@@ -166,6 +172,7 @@
         <button onclick="navTo('home-screen')" class="btn-secondary">Back</button>
     </div>
 
+    <!-- LOBBY SCREEN -->
     <div id="lobby-screen" class="screen">
         <h1>Room Code: <span id="display-room-code" style="color:var(--accent);">...</span></h1>
         <p id="lobby-status">Waiting for players...</p>
@@ -177,6 +184,7 @@
             <select id="online-mode-select">
                 <option value="cities">Cities</option>
                 <option value="countries">Countries</option>
+                <option value="population">Population (Countries)</option>
                 <option value="mountains">Mountains</option>
                 <option value="landmarks">Landmarks</option>
             </select>
@@ -193,9 +201,10 @@
             </select>
             <button onclick="startOnlineGame()" class="btn-success">Start Game</button>
         </div>
-        <button onclick="location.reload()" class="btn-danger" style="margin-top: 15px; width: 90%; max-width: 350px;">Leave / Try Again</button>
+        <button onclick="cancelGameAndReload()" class="btn-danger" style="margin-top: 15px; width: 90%; max-width: 350px;">Leave / Reset</button>
     </div>
 
+    <!-- PASS PHONE SCREEN (Local Only) -->
     <div id="pass-screen" class="screen">
         <h1 style="margin-top: 25vh;">Round <span id="pass-round"></span></h1>
         <h2>Turn: <span id="pass-player-name" style="color: var(--primary); font-size: 32px;"></span></h2>
@@ -203,25 +212,35 @@
         <button onclick="startTurn()">I'm Ready!</button>
     </div>
 
+    <!-- GAME SCREEN -->
     <div id="game-screen" class="screen" style="padding: 10px;">
         <div class="top-bar">
             <div id="ui-timer" class="timer-display" style="display: none;"></div>
             <div style="font-size: 14px; color: var(--text);">Round <span id="ui-round">1</span> <span id="ui-player-display"></span></div>
-            <div style="margin-top: 5px;">Find:</div>
+            <div style="margin-top: 5px;" id="ui-find-text">Find:</div>
             <div class="target-location" id="ui-target">Target</div>
         </div>
         
         <div id="map-container">
             <div id="map"></div>
+            <!-- Waiting / Calculating Overlay -->
             <div id="waiting-overlay" class="waiting-overlay">
                 <h2 id="waiting-title" style="margin-bottom: 20px;">Waiting for others...</h2>
                 <div id="waiting-list" style="width: 100%; max-width: 300px; font-size: 18px;"></div>
+            </div>
+            <!-- RECONNECT OVERLAY -->
+            <div id="reconnect-overlay" class="waiting-overlay" style="background: rgba(30, 30, 46, 0.98); z-index: 9999;">
+                <h2 style="color: var(--accent);">Connection Lost</h2>
+                <p style="font-size: 16px; margin-bottom: 20px;">Waiting for Host network to return...</p>
+                <div class="timer-warning" style="font-size: 40px;">📡</div>
+                <button onclick="cancelGameAndReload()" class="btn-danger" style="width: 200px; margin-top: 40px; font-size: 14px;">Leave Game</button>
             </div>
         </div>
         
         <button id="confirm-btn" class="btn-success" onclick="confirmGuess()" style="display: none; margin-bottom: 0;">Confirm Pin</button>
     </div>
 
+    <!-- ROUND MAP RESULTS SCREEN -->
     <div id="round-map-screen" class="screen" style="padding: 10px;">
         <div class="top-bar" style="padding: 10px;">
             <div style="font-size: 14px; color: var(--text);">Round <span id="map-res-round">1</span> Results</div>
@@ -235,23 +254,38 @@
         <div id="waiting-host-msg" style="display:none; text-align:center; padding:15px; font-weight: bold; color: var(--primary);">Waiting for Host to continue...</div>
     </div>
 
+    <!-- FINAL RESULTS SCREEN -->
     <div id="final-results-screen" class="screen">
         <h1 style="color: var(--success); font-size: 40px;">Game Over!</h1>
         <h2>Final Scoreboard</h2>
         <div class="leaderboard" id="final-leaderboard"></div>
-        <button onclick="location.reload()">Return to Menu</button>
+        
+        <div style="display: flex; gap: 10px; width: 90%; max-width: 350px;">
+            <button id="play-again-btn" onclick="playAgain()" class="btn-success" style="display:none; margin-top:0;">Play Again</button>
+            <button onclick="cancelGameAndReload()" class="btn-danger" style="margin-top:0;">Main Menu</button>
+        </div>
     </div>
 
 <script>
     // --- DATABASE ---
     const rawDb = {
-        cities: [["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["New York",40.712,-74.006],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Rio de Janeiro",-22.906,-43.172],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Paris",48.856,2.352],["Bangkok",13.756,100.501],["London",51.507,-0.127],["Sydney",-33.868,151.209],["Rome",41.902,12.496],["Dubai",25.204,55.27]],
-        countries: [["Australia",-25.274,133.775],["Brazil",-14.235,-51.925],["Canada",56.13,-106.346],["China",35.861,104.195],["Egypt",26.82,30.802],["France",46.227,2.213],["Germany",51.165,10.451],["India",20.593,78.962],["Italy",41.871,12.567],["Japan",36.204,138.252],["Mexico",23.634,-102.552],["Russia",61.524,105.318],["South Africa",-30.559,22.937],["Spain",40.463,-3.749],["United Kingdom",55.378,-3.435],["United States",37.09,-95.712]],
+        cities: [
+            ["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["Osaka",34.693,135.502],["New York",40.712,-74.006],["Karachi",24.86,67.001],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Kolkata",22.572,88.363],["Manila",14.599,120.984],["Lagos",6.524,3.379],["Rio de Janeiro",-22.906,-43.172],["Kinshasa",-4.441,15.266],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Lahore",31.52,74.358],["Bangalore",12.971,77.594],["Paris",48.856,2.352],["Bogota",4.711,-74.072],["Jakarta",-6.208,106.845],["Lima",-12.046,-77.028],["Bangkok",13.756,100.501],["Seoul",37.566,126.978],["London",51.507,-0.127],["Tehran",35.689,51.389],["Chicago",41.878,-87.629],["Ho Chi Minh City",10.823,106.629],["Luanda",-8.839,13.289],["Kuala Lumpur",3.139,101.686],["Hong Kong",22.319,114.169],["Riyadh",24.713,46.675],["Baghdad",33.315,44.361],["Santiago",-33.448,-70.669],["Madrid",40.416,-3.703],["Toronto",43.653,-79.383],["Miami",25.761,-80.191],["Singapore",1.352,103.819],["Philadelphia",39.952,-75.165],["Atlanta",33.749,-84.387],["Barcelona",41.385,2.173],["Johannesburg",-26.204,28.047],["St Petersburg",59.931,30.36],["Washington DC",38.907,-77.036],["Dubai",25.204,55.27],["Melbourne",-37.813,144.963],["Sydney",-33.868,151.209],["Nairobi",-1.292,36.821],["San Francisco",37.774,-122.419],["Algiers",36.752,3.042],["Kabul",34.528,69.111],["Ankara",39.92,32.854],["Boston",42.36,-71.058],["Rome",41.902,12.496],["Montreal",45.501,-73.567],["Athens",37.983,23.727],["Berlin",52.52,13.405],["Vienna",48.208,16.373],["Amsterdam",52.367,4.904],["Brussels",50.85,4.351],["Copenhagen",55.676,12.568],["Stockholm",59.329,18.068],["Oslo",59.913,10.752],["Helsinki",60.169,24.938],["Warsaw",52.229,21.012],["Prague",50.088,14.42],["Budapest",47.497,19.04],["Zurich",47.376,8.541],["Geneva",46.204,6.143],["Munich",48.135,11.582],["Frankfurt",50.11,8.682],["Hamburg",53.551,9.993],["Milan",45.464,9.19],["Venice",45.44,12.315],["Florence",43.769,11.259],["Naples",40.851,14.268],["Lisbon",38.722,-9.139],["Porto",41.157,-8.629],["Dublin",53.349,-6.26],["Edinburgh",55.953,-3.188],["Manchester",53.48,-2.242],["Birmingham",52.486,-1.89],["Liverpool",53.408,-2.981],["Glasgow",55.864,-4.251],["Belfast",54.597,-5.93],["Cardiff",51.481,-3.179],["Auckland",-36.848,174.763],["Wellington",-41.286,174.776],["Christchurch",-43.532,172.636],["Brisbane",-27.469,153.025],["Perth",-31.95,115.86],["Adelaide",-34.928,138.6],["Hobart",-42.882,147.327],["Darwin",-12.463,130.845],["Canberra",-35.28,149.13],["Cape Town",-33.924,18.424],["Pretoria",-25.747,28.229],["Durban",-29.858,31.021],["Accra",5.603,-0.187],["Addis Ababa",8.98,38.757],["Casablanca",33.573,-7.589],["Dakar",14.716,-17.467],["Vancouver",49.282,-123.120],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Houston",33.760,-95.369],["Dallas",29.760,-95.369],["Austin",32.776,-96.797],["Phoenix",30.267,-97.743],["Las Vegas",33.448,-112.074],["San Diego",32.715,-117.161],["San Antonio",29.424,-98.493],["San Jose",32.715,-117.161],["Detroit",29.760,-95.369],["Jacksonville",29.324,-98.493],["Indianapolis",30.332,-81.655],["Columbus",39.768,-86.158],["Charlotte",35.227,-80.843],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Washington",38.907,-77.036],["Boston",42.360,-71.058],["El Paso",31.761,-106.485],["Nashville",35.227,-80.843],["Portland",45.515,-122.678],["Las Vegas",36.169,-115.139],["Louisville",36.162,-86.781],["Baltimore",39.290,-76.612],["Milwaukee",39.768,-86.158],["Albuquerque",31.761,-106.485],["Tucson",33.448,-112.074],["Fresno",36.746,-119.772],["Sacramento",37.338,-121.886],["Kansas City",39.099,-94.578],["Mesa",33.448,-112.074],["Atlanta",33.749,-84.387],["Omaha",39.099,-94.578],["Colorado Springs",39.739,-104.990],["Raleigh",35.227,-80.843],["Miami",25.761,-80.191],["Oakland",38.581,-121.494],["Minneapolis",43.038,-87.906],["Tulsa",32.222,-110.926],["Cleveland",39.961,-82.998],["Wichita",36.162,-86.781],["Arlington",32.735,-97.108],["New Orleans",29.951,-90.071],["Bakersfield",35.373,-119.018],["Tampa",25.761,-80.191],["Honolulu",32.715,-117.161]
+        ],
+        countries: [
+            ["China",35.861,104.195,1412000000],["India",20.593,78.962,1417000000],["United States",37.09,-95.712,333000000],["Indonesia",-0.789,113.921,275000000],["Pakistan",30.375,69.345,235000000],["Nigeria",9.081,8.675,218000000],["Brazil",-14.235,-51.925,215000000],["Bangladesh",23.684,90.356,171000000],["Russia",61.524,105.318,144000000],["Mexico",23.634,-102.552,128000000],["Japan",36.204,138.252,125000000],["Ethiopia",9.145,40.489,123000000],["Philippines",12.879,121.774,115000000],["Egypt",26.82,30.802,110000000],["Vietnam",14.058,108.277,98000000],["DR Congo",-4.322,15.307,99000000],["Turkey",38.963,35.243,85000000],["Iran",32.427,53.688,88000000],["Germany",51.165,10.451,83000000],["Thailand",15.87,100.992,71000000],["United Kingdom",55.378,-3.435,67000000],["France",46.227,2.213,68000000],["Italy",41.871,12.567,58000000],["Tanzania",-6.369,34.888,65000000],["South Africa",-30.559,22.937,60000000],["Myanmar",14.058,108.277,54000000],["Kenya",-0.023,37.906,54000000],["South Korea",35.907,127.766,51000000],["Colombia",4.57,-74.297,51000000],["Spain",40.463,-3.749,47000000],["Uganda",1.373,32.29,47000000],["Argentina",-38.416,-63.616,46000000],["Algeria",28.033,1.659,44000000],["Sudan",16.126,30.217,46000000],["Ukraine",48.379,31.165,43000000],["Iraq",33.223,43.679,44000000],["Afghanistan",33.939,67.709,41000000],["Poland",51.919,19.145,38000000],["Canada",56.13,-106.346,38000000],["Morocco",31.791,-7.092,37000000],["Saudi Arabia",23.885,45.079,36000000],["Uzbekistan",41.377,64.585,35000000],["Peru",-9.189,-75.015,34000000],["Angola",-11.202,17.873,35000000],["Malaysia",4.21,101.975,33000000],["Mozambique",-11.202,17.873,32000000],["Ghana",7.946,-1.023,33000000],["Yemen",15.552,48.516,33000000],["Nepal",28.394,84.124,30000000],["Venezuela",9.081,-66.18,28000000],["Madagascar",-18.766,46.869,29000000],["Cameroon",3.848,11.502,27000000],["Ivory Coast",7.946,-1.023,28000000],["North Korea",40.339,127.51,26000000],["Australia",-25.274,133.775,26000000],["Niger",15.454,18.732,26000000],["Taiwan",23.697,120.96,23000000],["Sri Lanka",7.873,80.771,22000000],["Burkina Faso",12.238,-1.561,22000000],["Mali",17.57,-3.996,22000000],["Romania",45.943,24.966,19000000],["Malawi",-11.202,17.873,20000000],["Chile",-35.675,-71.542,19000000],["Kazakhstan",48.019,66.923,19000000],["Zambia",-13.133,27.849,19000000],["Guatemala",15.783,-90.23,17000000],["Ecuador",-1.831,-78.183,18000000],["Syria",34.802,38.996,22000000],["Netherlands",52.132,5.291,17000000],["Senegal",14.497,-14.452,17000000],["Cambodia",12.565,104.99,16000000],["Chad",15.454,18.732,17000000],["Somalia",5.152,46.199,17000000],["Zimbabwe",-19.015,29.154,16000000],["Guinea",7.946,-1.023,13000000],["Rwanda",-1.94,29.873,13000000],["Benin",9.307,2.315,13000000],["Burundi",-3.373,29.918,12000000],["Tunisia",33.886,9.537,12000000],["Bolivia",-16.29,-63.588,12000000],["Belgium",50.503,4.469,11000000],["Haiti",18.971,-72.285,11000000],["Cuba",21.521,-77.781,11000000],["South Sudan",16.126,30.217,11000000],["Dominican Republic",18.735,-70.162,11000000],["Czechia",49.817,15.472,10000000],["Greece",39.074,21.824,10000000],["Jordan",30.585,36.238,11000000],["Portugal",39.399,-8.224,10000000],["Azerbaijan",40.143,47.576,10000000],["Sweden",60.128,18.643,10000000],["Honduras",15.199,-86.241,10000000],["United Arab Emirates",23.424,53.847,9000000],["Hungary",47.162,19.503,9000000],["Tajikistan",41.377,64.585,9000000],["Belarus",53.709,27.953,9000000],["Austria",47.516,14.55,9000000],["Papua New Guinea",-5.78,145.03,9000000],["Serbia",44.016,21.005,8000000],["Israel",31.046,34.851,9000000],["Switzerland",46.818,8.227,8000000],["Togo",9.307,2.315,8000000],["Sierra Leone",14.497,-14.452,8000000],["Hong Kong",22.319,114.169,7000000],["Laos",12.565,104.99,7000000],["Paraguay",-23.442,-58.443,7000000],["Bulgaria",42.733,25.485,6000000],["Libya",26.335,17.228,6000000],["Lebanon",33.854,35.862,6000000],["Nicaragua",15.199,-86.241,6000000],["Kyrgyzstan",41.377,64.585,6000000],["El Salvador",13.794,-88.896,6000000],["Turkmenistan",41.377,64.585,6000000],["Singapore",1.352,103.819,5000000],["Denmark",56.263,9.501,5000000],["Finland",61.924,25.748,5000000],["Congo",-4.322,15.307,5000000],["Slovakia",48.669,19.699,5000000],["Norway",60.472,8.468,5000000],["Oman",21.512,55.923,4000000],["State of Palestine",31.046,34.851,4000000],["Costa Rica",9.748,-83.753,5000000],["Liberia",14.497,-14.452,5000000],["Ireland",53.412,-8.243,5000000],["Central African Republic",15.454,18.732,5000000],["New Zealand",-40.90,174.885,5000000],["Mauritania",17.57,-3.996,4000000],["Panama",8.537,-80.782,4000000],["Kuwait",29.311,47.481,4000000],["Croatia",45.1,-15.2,4000000],["Moldova",45.943,24.966,4000000],["Georgia",42.315,43.356,3000000],["Eritrea",16.126,30.217,3000000],["Uruguay",-32.522,-55.765,3000000],["Bosnia and Herzegovina",43.915,17.679,3000000],["Mongolia",46.862,103.846,3000000],["Armenia",40.069,45.038,3000000],["Jamaica",18.109,-77.297,2000000],["Qatar",25.354,51.183,2000000],["Albania",41.153,20.168,2000000],["Lithuania",55.169,23.881,2000000],["Namibia",-11.202,17.873,2000000],["Gambia",14.497,-14.452,2000000],["Botswana",-22.328,24.684,2000000],["Gabon",9.307,2.315,2000000],["Lesotho",-22.328,24.684,2000000],["North Macedonia",42.733,25.485,2000000],["Slovenia",46.151,14.995,2000000],["Guinea-Bissau",14.497,-14.452,2000000],["Latvia",55.169,23.881,1000000],["Bahrain",25.93,50.637,1000000],["Equatorial Guinea",9.307,2.315,1000000],["Trinidad and Tobago",18.735,-70.162,1000000],["Estonia",58.595,25.013,1000000],["Timor-Leste",-5.78,145.03,1000000],["Mauritius",-18.766,46.869,1000000],["Cyprus",35.126,33.429,1000000],["Eswatini",-30.559,22.937,1000000],["Djibouti",11.825,42.59,1000000],["Fiji",-17.713,178.065,900000],["Comoros",11.825,42.59,800000],["Guyana",13.193,-59.543,700000],["Bhutan",27.514,90.433,700000],["Solomon Islands",-5.78,145.03,700000],["Macau",22.319,114.169,600000],["Montenegro",42.733,25.485,600000],["Luxembourg",49.815,6.129,600000],["Suriname",13.193,-59.543,500000],["Cabo Verde",14.497,-14.452,500000],["Malta",35.126,33.429,500000],["Brunei",4.535,114.727,400000],["Belize",17.189,-88.497,400000],["Bahamas",25.034,-77.396,300000],["Iceland",64.963,-19.02,300000],["Vanuatu",-17.713,178.065,300000],["Barbados",13.193,-59.543,200000],["Sao Tome and Principe",9.307,2.315,200000],["Samoa",-17.713,178.065,200000],["Saint Lucia",13.193,-59.543,100000]
+        ],
         mountains: [["Mount Everest",27.988,86.925],["K2",35.881,76.515],["Denali",63.069,-151.007],["Mount Kilimanjaro",-3.067,37.355],["Mont Blanc",45.832,6.865],["Matterhorn",45.976,7.658],["Mount Fuji",35.36,138.727],["Aconcagua",-32.653,-70.01],["Table Mountain",-33.962,18.409],["Mount Vesuvius",40.822,14.426]],
         landmarks: [["Eiffel Tower",48.858,2.294],["Statue of Liberty",40.689,-74.044],["Taj Mahal",27.175,78.042],["Colosseum",41.89,12.492],["Machu Picchu",-13.163,-72.545],["Pyramids of Giza",29.979,31.134],["Great Wall of China",40.431,116.57],["Stonehenge",51.178,-1.826],["Sydney Opera House",-33.856,151.215],["Burj Khalifa",25.197,55.274]]
     };
-    const db = {};
-    for (let key in rawDb) { db[key] = rawDb[key].map(i => ({ name: i[0], lat: i[1], lng: i[2] })); }
+    
+    const db = {
+        cities: rawDb.cities.map(i => ({ name: i[0], lat: i[1], lng: i[2] })),
+        countries: rawDb.countries.map(i => ({ name: i[0], lat: i[1], lng: i[2], pop: i[3] })),
+        population: rawDb.countries.map(i => ({ name: i[0], lat: i[1], lng: i[2], pop: i[3] })),
+        mountains: rawDb.mountains.map(i => ({ name: i[0], lat: i[1], lng: i[2] })),
+        landmarks: rawDb.landmarks.map(i => ({ name: i[0], lat: i[1], lng: i[2] }))
+    };
 
     // --- GAME STATE ---
     let mode = 'local';
@@ -262,6 +296,7 @@
     let currentRound = 1;
     let currentLocations = [];
     let currentTarget = null;
+    let activeScreen = 'home-screen';
     
     // Config
     let timeLimit = 0;
@@ -273,19 +308,34 @@
     
     // Online specific
     let peer = null;
-    let connections = []; 
+    let connections = {}; 
     let hostConn = null; 
     let myId = '';
+    let targetRoomCode = '';
     let onlineGuessesReceived = 0;
+    let autoReconnectInterval = null;
 
     // Maps
     let map = null, currentMarker = null, currentGuess = null;
     let resultMap = null, resultMarkers = [];
 
+    // --- INITIALIZATION & RECOVERY ---
+    window.onload = function() {
+        const savedState = localStorage.getItem('geopin_save');
+        if (savedState) document.getElementById('resume-btn').style.display = 'block';
+    };
+
+    function cancelGameAndReload() {
+        localStorage.removeItem('geopin_save');
+        location.reload();
+    }
+
     // --- UTILS ---
     function navTo(screenId) {
+        activeScreen = screenId;
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
+        if (isHost && mode === 'online') saveHostState(); 
     }
 
     function shuffleArray(array) {
@@ -293,9 +343,7 @@
         while (0 !== curId) {
             let randId = Math.floor(Math.random() * curId);
             curId -= 1;
-            let tmp = array[curId];
-            array[curId] = array[randId];
-            array[randId] = tmp;
+            let tmp = array[curId]; array[curId] = array[randId]; array[randId] = tmp;
         }
         return array;
     }
@@ -306,9 +354,9 @@
         players = [];
         for(let i=1; i<=4; i++) {
             const name = document.getElementById(`p${i}`).value.trim();
-            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
+            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
         }
-        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
+        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
 
         totalRounds = parseInt(document.getElementById('local-round-select').value);
         timeLimit = parseInt(document.getElementById('local-timer-select').value);
@@ -332,99 +380,172 @@
     }
 
     // --- ONLINE MULTIPLAYER LOGIC ---
-    function generateRoomCode() {
-        return Math.random().toString(36).substring(2, 6).toUpperCase();
-    }
+    function generateRoomCode() { return Math.random().toString(36).substring(2, 6).toUpperCase(); }
 
-    function initPeer(onOpen) {
+    function initPeer(onOpen, customCode = null) {
         const name = document.getElementById('my-online-name').value.trim() || "Player";
-        peer = new Peer('geopin-' + generateRoomCode(), {
+        const codeToUse = customCode || generateRoomCode();
+        
+        peer = new Peer('geopin-' + codeToUse, {
             config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
         }); 
         
         peer.on('open', (id) => {
             myId = id;
-            players = []; 
-            players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
+            if(isHost && !customCode) {
+                players = []; 
+                players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true });
+                targetRoomCode = codeToUse;
+            }
             if(onOpen) onOpen(id);
         });
 
         peer.on('error', (err) => {
-            document.getElementById('lobby-error').style.display = 'block';
-            document.getElementById('lobby-error').innerText = "Network Error (" + err.type + "). Strict NAT or firewall blocked the connection.";
-            document.getElementById('lobby-status').innerText = "Connection Failed.";
+            if(!isHost) {
+                document.getElementById('reconnect-overlay').style.display = 'flex';
+            } else {
+                document.getElementById('lobby-error').style.display = 'block';
+                document.getElementById('lobby-error').innerText = "Network Error (" + err.type + "). Check firewall settings.";
+                document.getElementById('lobby-status').innerText = "Connection Failed.";
+            }
         });
     }
 
     function hostRoom() {
-        mode = 'online';
-        isHost = true;
+        mode = 'online'; isHost = true;
         document.getElementById('lobby-status').innerText = "Creating room...";
         document.getElementById('lobby-error').style.display = 'none';
         navTo('lobby-screen');
 
         initPeer((id) => {
-            const roomCode = id.replace('geopin-', '');
-            document.getElementById('display-room-code').innerText = roomCode;
+            document.getElementById('display-room-code').innerText = targetRoomCode;
             document.getElementById('host-controls').style.display = 'block';
-            updateLobbyUI();
+            updateLobbyUI(); saveHostState();
 
             peer.on('connection', (conn) => {
-                connections.push(conn);
+                connections[conn.peer] = conn;
                 conn.on('data', (data) => handleHostData(conn, data));
+                conn.on('close', () => handleGuestDrop(conn.peer));
+                conn.on('error', () => handleGuestDrop(conn.peer));
             });
         });
     }
 
+    function resumeHostRoom() {
+        const savedRaw = localStorage.getItem('geopin_save');
+        if (!savedRaw) return;
+        const state = JSON.parse(savedRaw);
+        mode = 'online'; isHost = true;
+        
+        players = state.players; currentLocations = state.currentLocations; totalRounds = state.totalRounds;
+        timeLimit = state.timeLimit; gameCategory = state.gameCategory; currentRound = state.currentRound;
+        targetRoomCode = state.roomCode;
+        
+        players.forEach(p => { if(p.id !== 'geopin-' + targetRoomCode) p.online = false; });
+        
+        document.getElementById('lobby-status').innerText = "Restoring room...";
+        document.getElementById('display-room-code').innerText = targetRoomCode;
+        
+        if (state.activeScreen === 'game-screen') {
+            initMap(); startTurn();
+        } else if (state.activeScreen === 'round-map-screen') {
+            currentTarget = currentLocations[currentRound - 1]; showRoundMapResults();
+        } else {
+            document.getElementById('host-controls').style.display = 'block';
+            updateLobbyUI(); navTo('lobby-screen');
+        }
+
+        initPeer((id) => {
+            updateLobbyUI();
+            peer.on('connection', (conn) => {
+                connections[conn.peer] = conn;
+                conn.on('data', (data) => handleHostData(conn, data));
+                conn.on('close', () => handleGuestDrop(conn.peer));
+                conn.on('error', () => handleGuestDrop(conn.peer));
+            });
+        }, targetRoomCode);
+    }
+
+    function handleGuestDrop(peerId) {
+        let p = players.find(pl => pl.connId === peerId);
+        if(p) { p.online = false; updateLobbyUI(); updateWaitingScreenUI(); broadcastStateUpdate(); saveHostState(); }
+        delete connections[peerId];
+    }
+
+    function saveHostState() {
+        if (!isHost || mode !== 'online') return;
+        const state = {
+            roomCode: targetRoomCode, players: players, currentLocations: currentLocations,
+            totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory,
+            currentRound: currentRound, activeScreen: activeScreen
+        };
+        localStorage.setItem('geopin_save', JSON.stringify(state));
+    }
+
     function joinRoom() {
-        mode = 'online';
-        isHost = false;
-        const code = document.getElementById('join-room-code').value.trim().toUpperCase();
-        if(!code) return alert("Enter a room code");
+        mode = 'online'; isHost = false;
+        targetRoomCode = document.getElementById('join-room-code').value.trim().toUpperCase();
+        if(!targetRoomCode) return alert("Enter a room code");
         
         document.getElementById('lobby-status').innerText = "Connecting to host...";
         document.getElementById('lobby-error').style.display = 'none';
         navTo('lobby-screen');
-        document.getElementById('display-room-code').innerText = code;
+        document.getElementById('display-room-code').innerText = targetRoomCode;
 
-        initPeer((id) => {
-            hostConn = peer.connect('geopin-' + code, { reliable: true });
-            const connectTimeout = setTimeout(() => {
-                if (!hostConn.open) {
-                    document.getElementById('lobby-error').style.display = 'block';
-                    document.getElementById('lobby-error').innerText = "Could not reach host. Check code or firewall settings.";
-                    document.getElementById('lobby-status').innerText = "Connection Failed.";
-                }
-            }, 10000);
+        initPeer((id) => establishGuestConnection(targetRoomCode));
+    }
 
-            hostConn.on('open', () => {
-                clearTimeout(connectTimeout); 
-                document.getElementById('lobby-status').innerText = "Connected! Waiting for host to start...";
-                hostConn.send({ type: 'JOIN', id: myId, name: players[0].name });
-            });
-            hostConn.on('error', () => {
+    function establishGuestConnection(code) {
+        hostConn = peer.connect('geopin-' + code, { reliable: true });
+        
+        const connectTimeout = setTimeout(() => {
+            if (!hostConn.open) {
                 document.getElementById('lobby-error').style.display = 'block';
-                document.getElementById('lobby-error').innerText = "Connection Dropped.";
-            });
-            hostConn.on('data', (data) => handleGuestData(data));
+                document.getElementById('lobby-error').innerText = "Could not reach host.";
+                document.getElementById('lobby-status').innerText = "Connection Failed.";
+            }
+        }, 10000);
+
+        hostConn.on('open', () => {
+            clearTimeout(connectTimeout); clearInterval(autoReconnectInterval); 
+            document.getElementById('reconnect-overlay').style.display = 'none';
+            const name = document.getElementById('my-online-name').value.trim() || "Player";
+            hostConn.send({ type: 'JOIN', id: myId, name: name });
         });
+
+        hostConn.on('close', () => startAutoReconnect());
+        hostConn.on('error', () => startAutoReconnect());
+        hostConn.on('data', (data) => handleGuestData(data));
+    }
+
+    function startAutoReconnect() {
+        if(activeScreen === 'home-screen' || activeScreen === 'local-setup-screen') return;
+        document.getElementById('reconnect-overlay').style.display = 'flex';
+        clearInterval(autoReconnectInterval);
+        
+        autoReconnectInterval = setInterval(() => {
+            if(peer.disconnected) peer.reconnect();
+            establishGuestConnection(targetRoomCode);
+        }, 5000);
     }
 
     function updateLobbyUI() {
         const board = document.getElementById('lobby-players');
         board.innerHTML = '';
         players.forEach(p => {
-            board.innerHTML += `<div class="score-row"><div>${p.name}</div>${p.id === myId ? '<small style="color:var(--primary);">(You)</small>' : ''}</div>`;
+            let status = p.online ? '' : '<span class="offline-tag">(Offline)</span>';
+            let you = p.id === myId ? '<small style="color:var(--primary);">(You)</small>' : '';
+            board.innerHTML += `<div class="score-row"><div>${p.name} ${status}</div>${you}</div>`;
         });
-        document.getElementById('lobby-status').innerText = `Players: ${players.length}/4`;
+        if(isHost) document.getElementById('lobby-status').innerText = `Players: ${players.length}/4`;
     }
 
     function updateWaitingScreenUI() {
         const list = document.getElementById('waiting-list');
         list.innerHTML = '';
         players.forEach(p => {
-            const status = p.hasGuessed ? '✅ Ready' : '⏳ Thinking...';
-            const color = p.hasGuessed ? 'var(--success)' : 'var(--warning)';
+            let status = !p.online ? '🔴 Offline' : (p.hasGuessed ? '✅ Ready' : '⏳ Thinking...');
+            let color = !p.online ? 'var(--accent)' : (p.hasGuessed ? 'var(--success)' : 'var(--warning)');
             list.innerHTML += `
                 <div style="display:flex; justify-content:space-between; margin:10px 0; border-bottom:1px solid #45475a; padding-bottom:5px;">
                     <span>${p.name}</span> <span style="color:${color}">${status}</span>
@@ -434,59 +555,78 @@
 
     function handleHostData(conn, data) {
         if (data.type === 'JOIN') {
-            players.push({ id: data.id, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
-            updateLobbyUI();
-            broadcast({ type: 'LOBBY_UPDATE', players: players });
+            let existingPlayer = players.find(p => p.id === data.id);
+            if (existingPlayer) {
+                existingPlayer.online = true; existingPlayer.connId = conn.peer;
+                conn.send({ type: 'SYNC_STATE', state: buildGameState() });
+            } else {
+                players.push({ id: data.id, connId: conn.peer, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null });
+            }
+            updateLobbyUI(); broadcastStateUpdate(); saveHostState();
         }
         else if (data.type === 'GUESS') {
             const p = players.find(p => p.id === data.id);
-            if (p) {
-                p.lastGuess = data.guess;
-                p.timeTaken = data.timeTaken;
-                p.hasGuessed = true;
+            if (p && !p.hasGuessed) {
+                p.lastGuess = data.guess; p.timeTaken = data.timeTaken; p.hasGuessed = true;
                 onlineGuessesReceived++;
-                updateWaitingScreenUI();
-                broadcast({ type: 'PLAYER_GUESSED', id: data.id });
-                if (onlineGuessesReceived >= players.length) finishOnlineRound();
+                updateWaitingScreenUI(); broadcastStateUpdate(); saveHostState();
+                
+                let expectedGuesses = players.filter(pl => pl.online).length;
+                if (onlineGuessesReceived >= expectedGuesses) finishOnlineRound();
             }
         }
     }
 
     function handleGuestData(data) {
         if (data.type === 'LOBBY_UPDATE') {
-            players = data.players;
-            updateLobbyUI();
+            players = data.players; updateLobbyUI(); updateWaitingScreenUI();
+        }
+        else if (data.type === 'SYNC_STATE') {
+            players = data.state.players; currentLocations = data.state.currentLocations;
+            totalRounds = data.state.totalRounds; timeLimit = data.state.timeLimit;
+            gameCategory = data.state.gameCategory; currentRound = data.state.currentRound;
+            currentTarget = currentLocations[currentRound - 1];
+            
+            updateLobbyUI(); updateWaitingScreenUI();
+            
+            if(data.state.activeScreen === 'game-screen') {
+                initMap(); startTurn();
+                let me = players.find(p => p.id === myId);
+                if(me && me.hasGuessed) {
+                    document.getElementById('confirm-btn').style.display = 'none';
+                    document.getElementById('waiting-overlay').style.display = 'flex';
+                }
+            } else if (data.state.activeScreen === 'round-map-screen') {
+                showRoundMapResults();
+            } else if (data.state.activeScreen === 'lobby-screen') {
+                document.getElementById('lobby-status').innerText = "Connected! Waiting for host to start...";
+                navTo('lobby-screen');
+            }
         }
         else if (data.type === 'START_GAME') {
-            players = data.players;
-            currentLocations = data.locations;
-            totalRounds = data.totalRounds;
-            timeLimit = data.timeLimit;
-            gameCategory = data.gameCategory;
-            currentRound = 1;
-            initMap();
-            startTurn(); 
-        }
-        else if (data.type === 'PLAYER_GUESSED') {
-            const p = players.find(p => p.id === data.id);
-            if (p) p.hasGuessed = true;
-            updateWaitingScreenUI();
+            players = data.players; currentLocations = data.locations;
+            totalRounds = data.totalRounds; timeLimit = data.timeLimit; gameCategory = data.gameCategory;
+            currentRound = 1; initMap(); startTurn(); 
         }
         else if (data.type === 'ROUND_RESULTS') {
-            players = data.players;
-            showRoundMapResults();
+            players = data.players; showRoundMapResults();
         }
         else if (data.type === 'NEXT_ROUND') {
-            currentRound = data.round;
-            startTurn();
+            currentRound = data.round; startTurn();
         }
         else if (data.type === 'END_GAME') {
+            players = data.players; showFinalResults();
+        }
+        else if (data.type === 'RETURN_TO_LOBBY') {
             players = data.players;
-            showFinalResults();
+            updateLobbyUI(); updateWaitingScreenUI(); navTo('lobby-screen');
+            document.getElementById('lobby-status').innerText = "Host is setting up the next game...";
         }
     }
 
-    function broadcast(data) { connections.forEach(conn => conn.send(data)); }
+    function buildGameState() { return { players: players, currentLocations: currentLocations, totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory, currentRound: currentRound, activeScreen: activeScreen }; }
+    function broadcastStateUpdate() { Object.values(connections).forEach(conn => { if(conn.open) conn.send({ type: 'LOBBY_UPDATE', players: players }); }); }
+    function broadcast(data) { Object.values(connections).forEach(conn => { if(conn.open) conn.send(data); }); }
 
     function startOnlineGame() {
         totalRounds = parseInt(document.getElementById('online-round-select').value);
@@ -497,19 +637,25 @@
         currentLocations = shuffled.slice(0, totalRounds);
         currentRound = 1;
         
-        broadcast({ 
-            type: 'START_GAME', players: players, locations: currentLocations, 
-            totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory 
-        });
-        
-        initMap();
-        startTurn();
+        broadcast({ type: 'START_GAME', players: players, locations: currentLocations, totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory });
+        initMap(); startTurn();
     }
 
     async function finishOnlineRound() {
         await processAllGuessesAndBonuses();
+        saveHostState();
         broadcast({ type: 'ROUND_RESULTS', players: players });
         showRoundMapResults(); 
+    }
+    
+    function playAgain() {
+        players.forEach(p => { p.totalScore = 0; p.roundScore = 0; p.bonusScore = 0; p.roundDist = 0; p.lastGuess = null; p.hasGuessed = false; p.timeTaken = 0; p.guessedPop = null; });
+        if (mode === 'online' && isHost) {
+            broadcast({ type: 'RETURN_TO_LOBBY', players: players });
+            navTo('lobby-screen');
+        } else if (mode === 'local') {
+            navTo('local-setup-screen');
+        }
     }
 
     // --- GAMEPLAY & SCORING ---
@@ -535,9 +681,15 @@
         
         document.getElementById('ui-round').innerText = currentRound + " / " + totalRounds;
         document.getElementById('ui-player-display').innerText = mode === 'local' ? "| " + players[currentPlayerIndex].name + "'s Turn" : "";
-        document.getElementById('ui-target').innerText = currentTarget.name;
         
-        // Reset Overlays
+        if (gameCategory === 'population') {
+            document.getElementById('ui-find-text').innerText = "Find a Country with Population:";
+            document.getElementById('ui-target').innerText = currentTarget.pop.toLocaleString();
+        } else {
+            document.getElementById('ui-find-text').innerText = "Find:";
+            document.getElementById('ui-target').innerText = currentTarget.name;
+        }
+        
         document.getElementById('waiting-title').innerText = "Waiting for others...";
         document.getElementById('waiting-list').innerHTML = "";
         document.getElementById('waiting-overlay').style.display = 'none';
@@ -561,10 +713,7 @@
                 timeRemaining--;
                 timerUI.innerText = timeRemaining + "s";
                 if(timeRemaining <= 5) timerUI.classList.add('timer-warning');
-                if(timeRemaining <= 0) {
-                    clearInterval(timerInterval);
-                    confirmGuess(); 
-                }
+                if(timeRemaining <= 0) { clearInterval(timerInterval); confirmGuess(); }
             }, 1000);
         } else {
             timerUI.style.display = 'none';
@@ -579,98 +728,106 @@
         
         if (mode === 'local') {
             const player = players[currentPlayerIndex];
-            player.lastGuess = guessData;
-            player.timeTaken = timeTaken;
-            player.hasGuessed = true;
+            player.lastGuess = guessData; player.timeTaken = timeTaken; player.hasGuessed = true;
             
             currentPlayerIndex++;
             if (currentPlayerIndex < players.length) {
                 navTo('pass-screen');
                 document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name;
             } else {
-                await processAllGuessesAndBonuses();
-                showRoundMapResults();
+                await processAllGuessesAndBonuses(); showRoundMapResults();
             }
         } 
         else if (mode === 'online') {
             document.getElementById('waiting-overlay').style.display = 'flex';
             const me = players.find(p => p.id === myId);
-            me.hasGuessed = true;
-            updateWaitingScreenUI();
+            me.hasGuessed = true; updateWaitingScreenUI();
             
             if (isHost) {
-                me.lastGuess = guessData;
-                me.timeTaken = timeTaken;
-                onlineGuessesReceived++;
-                broadcast({ type: 'PLAYER_GUESSED', id: myId });
-                if (onlineGuessesReceived >= players.length) await finishOnlineRound();
+                me.lastGuess = guessData; me.timeTaken = timeTaken; onlineGuessesReceived++;
+                broadcastStateUpdate(); saveHostState();
+                
+                let expectedGuesses = players.filter(pl => pl.online).length;
+                if (onlineGuessesReceived >= expectedGuesses) await finishOnlineRound();
             } else {
                 hostConn.send({ type: 'GUESS', id: myId, guess: guessData, timeTaken: timeTaken });
             }
         }
     }
 
-    // Handles API Country checks, distance, and speed bonuses
     async function processAllGuessesAndBonuses() {
-        // Show calculating screen
         document.getElementById('waiting-overlay').style.display = 'flex';
         document.getElementById('waiting-title').innerText = "Calculating Scores...";
         document.getElementById('waiting-list').innerHTML = "";
 
         for (let p of players) {
-            p.bonusScore = 0; 
+            p.bonusScore = 0; p.guessedPop = null;
             if (!p.lastGuess) {
-                p.roundDist = 99999;
-                p.roundScore = 0;
-                continue;
+                p.roundDist = 99999; p.roundScore = 0; continue;
             }
 
             const distKm = getDist(p.lastGuess.lat, p.lastGuess.lng, currentTarget.lat, currentTarget.lng);
             p.roundDist = distKm;
             
-            if (gameCategory === 'countries') {
+            if (gameCategory === 'population') {
                 try {
-                    // Ask API what country the pin is in
                     let res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lastGuess.lat}&longitude=${p.lastGuess.lng}&localityLanguage=en`);
                     let data = await res.json();
                     let apiCountry = data.countryName || "";
                     
-                    // Normalize text (e.g. "United States of America" vs "United States")
                     let t = currentTarget.name.toLowerCase().replace(/[^a-z]/g, '');
                     let c = apiCountry.toLowerCase().replace(/[^a-z]/g, '');
                     
                     if (c && t && (t.includes(c) || c.includes(t))) {
-                        p.roundScore = 5000;
-                        continue; // Got it right, skip distance penalty
+                        p.roundScore = 5000; continue; 
+                    } else if (c) {
+                        // Wrong country guessed, find its population in our DB
+                        let guessedDbCountry = db.population.find(dbC => {
+                            let dbName = dbC.name.toLowerCase().replace(/[^a-z]/g, '');
+                            return dbName.includes(c) || c.includes(dbName);
+                        });
+                        
+                        if (guessedDbCountry) {
+                            let minPop = Math.min(currentTarget.pop, guessedDbCountry.pop);
+                            let maxPop = Math.max(currentTarget.pop, guessedDbCountry.pop);
+                            p.roundScore = Math.floor(5000 * (minPop / maxPop));
+                            p.guessedPop = guessedDbCountry.pop;
+                            continue;
+                        }
                     }
-                } catch (e) { console.warn("API Geocode failed, using distance fallback."); }
+                } catch (e) { console.warn("API Geocode failed"); }
                 
-                // Fallback for Misses or API failure
+                // Hit ocean or API failed
+                p.roundScore = 0;
+                
+            } else if (gameCategory === 'countries') {
+                try {
+                    let res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lastGuess.lat}&longitude=${p.lastGuess.lng}&localityLanguage=en`);
+                    let data = await res.json();
+                    let apiCountry = data.countryName || "";
+                    
+                    let t = currentTarget.name.toLowerCase().replace(/[^a-z]/g, '');
+                    let c = apiCountry.toLowerCase().replace(/[^a-z]/g, '');
+                    
+                    if (c && t && (t.includes(c) || c.includes(t))) {
+                        p.roundScore = 5000; continue; 
+                    }
+                } catch (e) { console.warn("API Geocode failed"); }
+                
                 const hitRadius = 750;
-                if (distKm <= hitRadius) {
-                    p.roundScore = 5000;
-                } else {
-                    p.roundScore = Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 3500)); 
-                    if (p.roundScore < 0) p.roundScore = 0;
-                }
+                if (distKm <= hitRadius) p.roundScore = 5000;
+                else p.roundScore = Math.max(0, Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 3500))); 
             } else {
-                // Cities, Mountains, Landmarks
                 const hitRadius = 30;
-                if (distKm <= hitRadius) {
-                    p.roundScore = 5000;
-                } else {
-                    p.roundScore = Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 2500)); 
-                    if (p.roundScore < 0) p.roundScore = 0;
-                }
+                if (distKm <= hitRadius) p.roundScore = 5000;
+                else p.roundScore = Math.max(0, Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 2500))); 
             }
         }
 
-        // Speed Bonuses for Direct Hits
-        let directHits = players.filter(p => p.roundScore === 5000).sort((a, b) => a.timeTaken - b.timeTaken);
+        let directHits = players.filter(p => p.roundScore === 5000 && p.lastGuess).sort((a, b) => a.timeTaken - b.timeTaken);
         if (directHits.length > 0) {
-            if (directHits.length === 1) {
-                directHits[0].bonusScore = 100;
-            } else {
+            if (directHits.length === 1) directHits[0].bonusScore = 100;
+            else {
                 directHits.forEach((p, index) => {
                     let scale = 1 - (index / (directHits.length - 1));
                     p.bonusScore = Math.round(100 * scale);
@@ -686,7 +843,12 @@
     function showRoundMapResults() {
         navTo('round-map-screen');
         document.getElementById('map-res-round').innerText = currentRound;
-        document.getElementById('map-res-target').innerText = currentTarget.name;
+        
+        if (gameCategory === 'population') {
+            document.getElementById('map-res-target').innerText = currentTarget.name + " (" + currentTarget.pop.toLocaleString() + ")";
+        } else {
+            document.getElementById('map-res-target').innerText = currentTarget.name;
+        }
 
         if (mode === 'online') onlineGuessesReceived = 0; 
 
@@ -696,15 +858,26 @@
         const sorted = [...players].sort((a, b) => b.roundScore - a.roundScore);
         const overlay = document.getElementById('map-scoreboard-overlay');
         overlay.innerHTML = `<div style="font-weight:bold; color:var(--primary); margin-bottom:8px; border-bottom:1px solid #45475a; padding-bottom:4px;">Scores</div>`;
+        
         sorted.forEach((p, idx) => {
             let shortName = p.name.length > 8 ? p.name.substring(0, 7) + '..' : p.name;
-            let distText = p.lastGuess ? `${Math.round(p.roundDist).toLocaleString()} km` : "No guess";
+            let distText = "";
+            
+            if (gameCategory === 'population') {
+                if (p.roundScore >= 5000) distText = "Exact Country!";
+                else if (p.guessedPop) distText = `Guessed pop: ${p.guessedPop.toLocaleString()}`;
+                else distText = p.lastGuess ? "Ocean / Unknown" : "No guess";
+            } else {
+                distText = p.lastGuess ? `${Math.round(p.roundDist).toLocaleString()} km` : "No guess";
+            }
+            
             let bonusText = p.bonusScore > 0 ? `<div class="bonus-text">Fastest Bonus: +${p.bonusScore}</div>` : "";
+            let offlineText = !p.online ? `<span class="offline-tag"> (Offline)</span>` : "";
             
             overlay.innerHTML += `
                 <div class="overlay-score-row" style="flex-direction: column;">
                     <div style="display:flex; justify-content: space-between; width: 100%;">
-                        <div><b>${idx+1}. ${shortName}</b><br><small style="color:#a6adc8;">${distText}</small></div>
+                        <div><b>${idx+1}. ${shortName}</b>${offlineText}<br><small style="color:#a6adc8;">${distText}</small></div>
                         <div style="color: var(--success); font-weight: bold; margin-left: 10px;">+${p.roundScore}</div>
                     </div>
                     ${bonusText}
@@ -738,14 +911,14 @@
 
         setTimeout(() => {
             resultMap.invalidateSize();
-            resultMap.fitBounds(boundsArr, { paddingTopLeft: [280, 20], paddingBottomRight: [20, 20], maxZoom: 10 });
+            if(boundsArr.length > 0) resultMap.fitBounds(boundsArr, { paddingTopLeft: [280, 20], paddingBottomRight: [20, 20], maxZoom: 10 });
         }, 100);
     }
 
     function nextRoundOrFinish() {
         currentRound++;
         if (currentRound > totalRounds) {
-            if (mode === 'online' && isHost) broadcast({ type: 'END_GAME', players: players });
+            if (mode === 'online' && isHost) { broadcast({ type: 'END_GAME', players: players }); localStorage.removeItem('geopin_save'); }
             showFinalResults();
         } else {
             if (mode === 'online' && isHost) broadcast({ type: 'NEXT_ROUND', round: currentRound });
@@ -761,12 +934,15 @@
         board.innerHTML = '';
         sorted.forEach((p, idx) => {
             const medal = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : ''));
+            let offlineText = !p.online ? `<span class="offline-tag"> (Offline)</span>` : "";
             board.innerHTML += `
                 <div class="score-row">
-                    <div style="font-size: 20px;">${medal} <b>${p.name}</b></div>
+                    <div style="font-size: 20px;">${medal} <b>${p.name}</b>${offlineText}</div>
                     <div style="color: var(--success); font-size: 22px; font-weight: bold;">${p.totalScore.toLocaleString()}</div>
                 </div>`;
         });
+        
+        document.getElementById('play-again-btn').style.display = (mode === 'local' || isHost) ? 'block' : 'none';
     }
 
     function getDist(lat1, lon1, lat2, lon2) {
