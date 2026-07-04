@@ -14,7 +14,7 @@
     <style>
         :root {
             --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4;
-            --primary: #89b4fa; --success: #a6e3a1; --accent: #f38ba8;
+            --primary: #89b4fa; --success: #a6e3a1; --accent: #f38ba8; --warning: #f9e2af;
         }
         body, html {
             margin: 0; padding: 0; height: 100%;
@@ -58,8 +58,16 @@
         .top-bar {
             width: 100%; text-align: center; background: var(--surface);
             padding: 15px; border-radius: 12px; margin-bottom: 10px; box-sizing: border-box;
+            position: relative;
         }
         .target-location { font-size: 26px; font-weight: bold; color: var(--accent); margin: 5px 0;}
+        .timer-display {
+            position: absolute; top: 15px; right: 15px;
+            font-size: 18px; font-weight: bold; color: var(--warning);
+            background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 8px;
+        }
+        .timer-warning { color: var(--accent); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
         .leaderboard {
             width: 100%; max-width: 350px; background: var(--surface);
@@ -73,13 +81,14 @@
         .map-overlay-scoreboard {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
             background: rgba(49, 50, 68, 0.95); padding: 10px; border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 200px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 250px;
         }
         .overlay-score-row {
             display: flex; justify-content: space-between; font-size: 13px;
             padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .overlay-score-row:last-child { border-bottom: none; }
+        .bonus-text { color: var(--warning); font-size: 11px; margin-top: 2px; }
 
         .player-pin {
             background-color: var(--primary); color: #11111b; border-radius: 50%;
@@ -93,16 +102,16 @@
         }
         .waiting-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
-            background: rgba(30, 30, 46, 0.9); color: white; z-index: 2000;
+            background: rgba(30, 30, 46, 0.95); color: white; z-index: 2000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 24px; font-weight: bold; display: none;
+            display: none; box-sizing: border-box; padding: 20px;
         }
     </style>
 </head>
 <body>
 
     <div id="home-screen" class="screen active">
-        <h1 style="margin-top: 15vh; font-size: 40px;">📍 GeoPin</h1>
+        <h1 style="margin-top: 10vh; font-size: 40px;">📍 GeoPin</h1>
         <div class="config-group" style="margin-top: 30px;">
             <button onclick="navTo('local-setup-screen')">Pass & Play (Local)</button>
             <button onclick="navTo('online-menu-screen')" class="btn-success">Online Multiplayer</button>
@@ -127,6 +136,13 @@
             <select id="local-round-select">
                 <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
                 <option value="7">7 Rounds</option><option value="10">10 Rounds</option>
+            </select>
+            <select id="local-timer-select">
+                <option value="0">Time: Unlimited</option>
+                <option value="10">Time: 10 Seconds</option>
+                <option value="30">Time: 30 Seconds</option>
+                <option value="60">Time: 1 Minute</option>
+                <option value="120">Time: 2 Minutes</option>
             </select>
         </div>
         <button onclick="startLocalGame()">Start Local Game</button>
@@ -153,10 +169,9 @@
     <div id="lobby-screen" class="screen">
         <h1>Room Code: <span id="display-room-code" style="color:var(--accent);">...</span></h1>
         <p id="lobby-status">Waiting for players...</p>
-        <p id="lobby-error" style="color: var(--accent); display: none; text-align: center; font-size: 14px; font-weight: bold;"></p>
+        <p id="lobby-error" style="color: var(--accent); display: none; text-align: center; font-size: 14px; font-weight: bold; padding: 10px;"></p>
         
-        <div class="leaderboard" id="lobby-players">
-            </div>
+        <div class="leaderboard" id="lobby-players"></div>
 
         <div id="host-controls" class="config-group" style="display: none;">
             <select id="online-mode-select">
@@ -169,9 +184,15 @@
                 <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
                 <option value="7">7 Rounds</option>
             </select>
+            <select id="online-timer-select">
+                <option value="0">Time: Unlimited</option>
+                <option value="10">Time: 10 Seconds</option>
+                <option value="30">Time: 30 Seconds</option>
+                <option value="60">Time: 1 Minute</option>
+                <option value="120">Time: 2 Minutes</option>
+            </select>
             <button onclick="startOnlineGame()" class="btn-success">Start Game</button>
         </div>
-        
         <button onclick="location.reload()" class="btn-danger" style="margin-top: 15px; width: 90%; max-width: 350px;">Leave / Try Again</button>
     </div>
 
@@ -184,6 +205,7 @@
 
     <div id="game-screen" class="screen" style="padding: 10px;">
         <div class="top-bar">
+            <div id="ui-timer" class="timer-display" style="display: none;"></div>
             <div style="font-size: 14px; color: var(--text);">Round <span id="ui-round">1</span> <span id="ui-player-display"></span></div>
             <div style="margin-top: 5px;">Find:</div>
             <div class="target-location" id="ui-target">Target</div>
@@ -191,7 +213,10 @@
         
         <div id="map-container">
             <div id="map"></div>
-            <div id="waiting-overlay" class="waiting-overlay">Waiting for others...</div>
+            <div id="waiting-overlay" class="waiting-overlay">
+                <h2 id="waiting-title" style="margin-bottom: 20px;">Waiting for others...</h2>
+                <div id="waiting-list" style="width: 100%; max-width: 300px; font-size: 18px;"></div>
+            </div>
         </div>
         
         <button id="confirm-btn" class="btn-success" onclick="confirmGuess()" style="display: none; margin-bottom: 0;">Confirm Pin</button>
@@ -230,12 +255,18 @@
 
     // --- GAME STATE ---
     let mode = 'local';
+    let gameCategory = 'cities';
     let isHost = false;
     let players = []; 
     let totalRounds = 3;
     let currentRound = 1;
     let currentLocations = [];
     let currentTarget = null;
+    
+    // Config
+    let timeLimit = 0;
+    let timerInterval = null;
+    let turnStartTime = 0;
     
     // Local specific
     let currentPlayerIndex = 0; 
@@ -251,10 +282,22 @@
     let map = null, currentMarker = null, currentGuess = null;
     let resultMap = null, resultMarkers = [];
 
-    // --- NAVIGATION ---
+    // --- UTILS ---
     function navTo(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
+    }
+
+    function shuffleArray(array) {
+        let curId = array.length;
+        while (0 !== curId) {
+            let randId = Math.floor(Math.random() * curId);
+            curId -= 1;
+            let tmp = array[curId];
+            array[curId] = array[randId];
+            array[randId] = tmp;
+        }
+        return array;
     }
 
     // --- LOCAL PLAY LOGIC ---
@@ -263,13 +306,16 @@
         players = [];
         for(let i=1; i<=4; i++) {
             const name = document.getElementById(`p${i}`).value.trim();
-            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+            if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
         }
-        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
 
         totalRounds = parseInt(document.getElementById('local-round-select').value);
-        const cat = document.getElementById('local-mode-select').value;
-        currentLocations = [...db[cat]].sort(() => 0.5 - Math.random()).slice(0, totalRounds);
+        timeLimit = parseInt(document.getElementById('local-timer-select').value);
+        gameCategory = document.getElementById('local-mode-select').value;
+        
+        let shuffled = shuffleArray([...db[gameCategory]]);
+        currentLocations = shuffled.slice(0, totalRounds);
         currentRound = 1;
         
         initMap();
@@ -279,6 +325,7 @@
     function setupLocalRound() {
         currentTarget = currentLocations[currentRound - 1];
         currentPlayerIndex = 0;
+        players.forEach(p => p.hasGuessed = false);
         document.getElementById('pass-round').innerText = currentRound;
         document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name;
         navTo('pass-screen');
@@ -291,19 +338,20 @@
 
     function initPeer(onOpen) {
         const name = document.getElementById('my-online-name').value.trim() || "Player";
-        peer = new Peer('geopin-' + generateRoomCode()); 
+        peer = new Peer('geopin-' + generateRoomCode(), {
+            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
+        }); 
         
         peer.on('open', (id) => {
             myId = id;
-            players = []; // clear in case of retry
-            players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+            players = []; 
+            players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
             if(onOpen) onOpen(id);
         });
 
-        // NEW: Explicit error handling for the peer server
         peer.on('error', (err) => {
             document.getElementById('lobby-error').style.display = 'block';
-            document.getElementById('lobby-error').innerText = "Network Error (" + err.type + "). Please try again.";
+            document.getElementById('lobby-error').innerText = "Network Error (" + err.type + "). Strict NAT or firewall blocked the connection.";
             document.getElementById('lobby-status').innerText = "Connection Failed.";
         });
     }
@@ -340,29 +388,24 @@
         document.getElementById('display-room-code').innerText = code;
 
         initPeer((id) => {
-            // reliable: true forces WebRTC to use a more stable connection protocol
             hostConn = peer.connect('geopin-' + code, { reliable: true });
-            
-            // NEW: 10 second timeout check
             const connectTimeout = setTimeout(() => {
                 if (!hostConn.open) {
                     document.getElementById('lobby-error').style.display = 'block';
-                    document.getElementById('lobby-error').innerText = "Could not reach host. Are they still in the lobby? Did you type the code right?";
+                    document.getElementById('lobby-error').innerText = "Could not reach host. Check code or firewall settings.";
                     document.getElementById('lobby-status').innerText = "Connection Failed.";
                 }
             }, 10000);
 
             hostConn.on('open', () => {
-                clearTimeout(connectTimeout); // We connected successfully, cancel the timeout error
+                clearTimeout(connectTimeout); 
                 document.getElementById('lobby-status').innerText = "Connected! Waiting for host to start...";
                 hostConn.send({ type: 'JOIN', id: myId, name: players[0].name });
             });
-
-            hostConn.on('error', (err) => {
+            hostConn.on('error', () => {
                 document.getElementById('lobby-error').style.display = 'block';
-                document.getElementById('lobby-error').innerText = "Connection Dropped. Please try again.";
+                document.getElementById('lobby-error').innerText = "Connection Dropped.";
             });
-
             hostConn.on('data', (data) => handleGuestData(data));
         });
     }
@@ -376,10 +419,22 @@
         document.getElementById('lobby-status').innerText = `Players: ${players.length}/4`;
     }
 
-    // Host receives data from Guests
+    function updateWaitingScreenUI() {
+        const list = document.getElementById('waiting-list');
+        list.innerHTML = '';
+        players.forEach(p => {
+            const status = p.hasGuessed ? '✅ Ready' : '⏳ Thinking...';
+            const color = p.hasGuessed ? 'var(--success)' : 'var(--warning)';
+            list.innerHTML += `
+                <div style="display:flex; justify-content:space-between; margin:10px 0; border-bottom:1px solid #45475a; padding-bottom:5px;">
+                    <span>${p.name}</span> <span style="color:${color}">${status}</span>
+                </div>`;
+        });
+    }
+
     function handleHostData(conn, data) {
         if (data.type === 'JOIN') {
-            players.push({ id: data.id, name: data.name, totalScore: 0, roundScore: 0, roundDist: 0, lastGuess: null });
+            players.push({ id: data.id, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false });
             updateLobbyUI();
             broadcast({ type: 'LOBBY_UPDATE', players: players });
         }
@@ -387,16 +442,16 @@
             const p = players.find(p => p.id === data.id);
             if (p) {
                 p.lastGuess = data.guess;
-                processGuessForPlayer(p);
+                p.timeTaken = data.timeTaken;
+                p.hasGuessed = true;
                 onlineGuessesReceived++;
-                if (onlineGuessesReceived >= players.length) {
-                    finishOnlineRound();
-                }
+                updateWaitingScreenUI();
+                broadcast({ type: 'PLAYER_GUESSED', id: data.id });
+                if (onlineGuessesReceived >= players.length) finishOnlineRound();
             }
         }
     }
 
-    // Guest receives data from Host
     function handleGuestData(data) {
         if (data.type === 'LOBBY_UPDATE') {
             players = data.players;
@@ -406,9 +461,16 @@
             players = data.players;
             currentLocations = data.locations;
             totalRounds = data.totalRounds;
+            timeLimit = data.timeLimit;
+            gameCategory = data.gameCategory;
             currentRound = 1;
             initMap();
             startTurn(); 
+        }
+        else if (data.type === 'PLAYER_GUESSED') {
+            const p = players.find(p => p.id === data.id);
+            if (p) p.hasGuessed = true;
+            updateWaitingScreenUI();
         }
         else if (data.type === 'ROUND_RESULTS') {
             players = data.players;
@@ -424,33 +486,33 @@
         }
     }
 
-    function broadcast(data) {
-        connections.forEach(conn => conn.send(data));
-    }
+    function broadcast(data) { connections.forEach(conn => conn.send(data)); }
 
     function startOnlineGame() {
         totalRounds = parseInt(document.getElementById('online-round-select').value);
-        const cat = document.getElementById('online-mode-select').value;
-        currentLocations = [...db[cat]].sort(() => 0.5 - Math.random()).slice(0, totalRounds);
+        timeLimit = parseInt(document.getElementById('online-timer-select').value);
+        gameCategory = document.getElementById('online-mode-select').value;
+        
+        let shuffled = shuffleArray([...db[gameCategory]]);
+        currentLocations = shuffled.slice(0, totalRounds);
         currentRound = 1;
         
         broadcast({ 
-            type: 'START_GAME', 
-            players: players, 
-            locations: currentLocations, 
-            totalRounds: totalRounds 
+            type: 'START_GAME', players: players, locations: currentLocations, 
+            totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory 
         });
         
         initMap();
         startTurn();
     }
 
-    function finishOnlineRound() {
+    async function finishOnlineRound() {
+        await processAllGuessesAndBonuses();
         broadcast({ type: 'ROUND_RESULTS', players: players });
         showRoundMapResults(); 
     }
 
-    // --- GAMEPLAY (Shared) ---
+    // --- GAMEPLAY & SCORING ---
     function initMap() {
         if (map !== null) map.remove();
         map = L.map('map', { center: [20, 0], zoom: 2, zoomControl: false });
@@ -469,15 +531,15 @@
     function startTurn() {
         navTo('game-screen');
         currentTarget = currentLocations[currentRound - 1];
+        players.forEach(p => p.hasGuessed = false);
         
         document.getElementById('ui-round').innerText = currentRound + " / " + totalRounds;
-        if (mode === 'local') {
-            document.getElementById('ui-player-display').innerText = "| " + players[currentPlayerIndex].name + "'s Turn";
-        } else {
-            document.getElementById('ui-player-display').innerText = "";
-        }
-        
+        document.getElementById('ui-player-display').innerText = mode === 'local' ? "| " + players[currentPlayerIndex].name + "'s Turn" : "";
         document.getElementById('ui-target').innerText = currentTarget.name;
+        
+        // Reset Overlays
+        document.getElementById('waiting-title').innerText = "Waiting for others...";
+        document.getElementById('waiting-list').innerHTML = "";
         document.getElementById('waiting-overlay').style.display = 'none';
         
         if (currentMarker) map.removeLayer(currentMarker);
@@ -485,43 +547,139 @@
         document.getElementById('confirm-btn').style.display = 'none';
         map.setView([20, 0], 2); 
         setTimeout(() => map.invalidateSize(), 100); 
+
+        turnStartTime = Date.now();
+        const timerUI = document.getElementById('ui-timer');
+        if (timeLimit > 0) {
+            timerUI.style.display = 'block';
+            timerUI.classList.remove('timer-warning');
+            let timeRemaining = timeLimit;
+            timerUI.innerText = timeRemaining + "s";
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                timerUI.innerText = timeRemaining + "s";
+                if(timeRemaining <= 5) timerUI.classList.add('timer-warning');
+                if(timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    confirmGuess(); 
+                }
+            }, 1000);
+        } else {
+            timerUI.style.display = 'none';
+        }
     }
 
-    function confirmGuess() {
+    async function confirmGuess() {
+        clearInterval(timerInterval);
         document.getElementById('confirm-btn').style.display = 'none';
+        let timeTaken = Date.now() - turnStartTime;
+        let guessData = currentGuess ? { lat: currentGuess.lat, lng: currentGuess.lng } : null;
         
         if (mode === 'local') {
             const player = players[currentPlayerIndex];
-            player.lastGuess = { lat: currentGuess.lat, lng: currentGuess.lng };
-            processGuessForPlayer(player);
+            player.lastGuess = guessData;
+            player.timeTaken = timeTaken;
+            player.hasGuessed = true;
+            
             currentPlayerIndex++;
             if (currentPlayerIndex < players.length) {
-                document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name;
                 navTo('pass-screen');
+                document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name;
             } else {
+                await processAllGuessesAndBonuses();
                 showRoundMapResults();
             }
         } 
         else if (mode === 'online') {
             document.getElementById('waiting-overlay').style.display = 'flex';
+            const me = players.find(p => p.id === myId);
+            me.hasGuessed = true;
+            updateWaitingScreenUI();
+            
             if (isHost) {
-                const p = players.find(p => p.id === myId);
-                p.lastGuess = { lat: currentGuess.lat, lng: currentGuess.lng };
-                processGuessForPlayer(p);
+                me.lastGuess = guessData;
+                me.timeTaken = timeTaken;
                 onlineGuessesReceived++;
-                if (onlineGuessesReceived >= players.length) finishOnlineRound();
+                broadcast({ type: 'PLAYER_GUESSED', id: myId });
+                if (onlineGuessesReceived >= players.length) await finishOnlineRound();
             } else {
-                hostConn.send({ type: 'GUESS', id: myId, guess: { lat: currentGuess.lat, lng: currentGuess.lng }});
+                hostConn.send({ type: 'GUESS', id: myId, guess: guessData, timeTaken: timeTaken });
             }
         }
     }
 
-    function processGuessForPlayer(player) {
-        const distKm = getDist(player.lastGuess.lat, player.lastGuess.lng, currentTarget.lat, currentTarget.lng);
-        let score = distKm <= 30 ? 5000 : Math.floor(5000 * Math.exp(-distKm / 2500)); 
-        player.roundScore = score < 0 ? 0 : score;
-        player.roundDist = distKm;
-        player.totalScore += player.roundScore;
+    // Handles API Country checks, distance, and speed bonuses
+    async function processAllGuessesAndBonuses() {
+        // Show calculating screen
+        document.getElementById('waiting-overlay').style.display = 'flex';
+        document.getElementById('waiting-title').innerText = "Calculating Scores...";
+        document.getElementById('waiting-list').innerHTML = "";
+
+        for (let p of players) {
+            p.bonusScore = 0; 
+            if (!p.lastGuess) {
+                p.roundDist = 99999;
+                p.roundScore = 0;
+                continue;
+            }
+
+            const distKm = getDist(p.lastGuess.lat, p.lastGuess.lng, currentTarget.lat, currentTarget.lng);
+            p.roundDist = distKm;
+            
+            if (gameCategory === 'countries') {
+                try {
+                    // Ask API what country the pin is in
+                    let res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lastGuess.lat}&longitude=${p.lastGuess.lng}&localityLanguage=en`);
+                    let data = await res.json();
+                    let apiCountry = data.countryName || "";
+                    
+                    // Normalize text (e.g. "United States of America" vs "United States")
+                    let t = currentTarget.name.toLowerCase().replace(/[^a-z]/g, '');
+                    let c = apiCountry.toLowerCase().replace(/[^a-z]/g, '');
+                    
+                    if (c && t && (t.includes(c) || c.includes(t))) {
+                        p.roundScore = 5000;
+                        continue; // Got it right, skip distance penalty
+                    }
+                } catch (e) { console.warn("API Geocode failed, using distance fallback."); }
+                
+                // Fallback for Misses or API failure
+                const hitRadius = 750;
+                if (distKm <= hitRadius) {
+                    p.roundScore = 5000;
+                } else {
+                    p.roundScore = Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 3500)); 
+                    if (p.roundScore < 0) p.roundScore = 0;
+                }
+            } else {
+                // Cities, Mountains, Landmarks
+                const hitRadius = 30;
+                if (distKm <= hitRadius) {
+                    p.roundScore = 5000;
+                } else {
+                    p.roundScore = Math.floor(5000 * Math.exp(-(distKm - hitRadius) / 2500)); 
+                    if (p.roundScore < 0) p.roundScore = 0;
+                }
+            }
+        }
+
+        // Speed Bonuses for Direct Hits
+        let directHits = players.filter(p => p.roundScore === 5000).sort((a, b) => a.timeTaken - b.timeTaken);
+        if (directHits.length > 0) {
+            if (directHits.length === 1) {
+                directHits[0].bonusScore = 100;
+            } else {
+                directHits.forEach((p, index) => {
+                    let scale = 1 - (index / (directHits.length - 1));
+                    p.bonusScore = Math.round(100 * scale);
+                });
+            }
+            directHits.forEach(p => p.roundScore += p.bonusScore);
+        }
+        
+        players.forEach(p => p.totalScore += p.roundScore);
     }
 
     // --- RESULTS (Shared) ---
@@ -532,7 +690,6 @@
 
         if (mode === 'online') onlineGuessesReceived = 0; 
 
-        // Host controls continuation
         document.getElementById('next-round-btn').style.display = (mode === 'local' || isHost) ? 'block' : 'none';
         document.getElementById('waiting-host-msg').style.display = (mode === 'online' && !isHost) ? 'block' : 'none';
 
@@ -541,10 +698,16 @@
         overlay.innerHTML = `<div style="font-weight:bold; color:var(--primary); margin-bottom:8px; border-bottom:1px solid #45475a; padding-bottom:4px;">Scores</div>`;
         sorted.forEach((p, idx) => {
             let shortName = p.name.length > 8 ? p.name.substring(0, 7) + '..' : p.name;
+            let distText = p.lastGuess ? `${Math.round(p.roundDist).toLocaleString()} km` : "No guess";
+            let bonusText = p.bonusScore > 0 ? `<div class="bonus-text">Fastest Bonus: +${p.bonusScore}</div>` : "";
+            
             overlay.innerHTML += `
-                <div class="overlay-score-row">
-                    <div><b>${idx+1}. ${shortName}</b><br><small style="color:#a6adc8;">${Math.round(p.roundDist).toLocaleString()} km</small></div>
-                    <div style="color: var(--success); font-weight: bold; margin-left: 10px;">+${p.roundScore}</div>
+                <div class="overlay-score-row" style="flex-direction: column;">
+                    <div style="display:flex; justify-content: space-between; width: 100%;">
+                        <div><b>${idx+1}. ${shortName}</b><br><small style="color:#a6adc8;">${distText}</small></div>
+                        <div style="color: var(--success); font-weight: bold; margin-left: 10px;">+${p.roundScore}</div>
+                    </div>
+                    ${bonusText}
                 </div>`;
         });
 
@@ -557,12 +720,10 @@
         resultMarkers = [];
         let boundsArr = [];
 
-        // Target
         const tIcon = L.divIcon({ className: 'target-pin', html: '📍', iconSize: [36, 36], iconAnchor: [18, 18] });
         resultMarkers.push(L.marker([currentTarget.lat, currentTarget.lng], {icon: tIcon}).addTo(resultMap));
         boundsArr.push([currentTarget.lat, currentTarget.lng]);
 
-        // Players
         players.forEach(p => {
             if(p.lastGuess) {
                 const pIcon = L.divIcon({ className: 'player-pin', html: p.name.substring(0, 2).toUpperCase(), iconSize: [30, 30], iconAnchor: [15, 15] });
@@ -577,7 +738,7 @@
 
         setTimeout(() => {
             resultMap.invalidateSize();
-            resultMap.fitBounds(boundsArr, { paddingTopLeft: [220, 20], paddingBottomRight: [20, 20], maxZoom: 10 });
+            resultMap.fitBounds(boundsArr, { paddingTopLeft: [280, 20], paddingBottomRight: [20, 20], maxZoom: 10 });
         }, 100);
     }
 
