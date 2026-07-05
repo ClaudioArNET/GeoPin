@@ -3,137 +3,686 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoPin Full Build</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>GeoPin</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
     <style>
-        :root { --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4; --primary: #89b4fa; --success: #a6e3a1; --accent: #f38ba8; --warning: #f9e2af; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; background-color: var(--bg); color: var(--text); overflow: hidden; }
-        .screen { display: none; height: 100%; width: 100%; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        :root {
+            --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4;
+            --primary: #89b4fa; --success: #a6e3a1; --accent: #f38ba8; --warning: #f9e2af;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: var(--bg); color: var(--text); overflow: hidden; overscroll-behavior-y: contain; -webkit-text-size-adjust: 100%; }
+        .screen { display: none; height: 100%; width: 100%; flex-direction: column; align-items: center; box-sizing: border-box; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .active { display: flex; }
-        button { width: 100%; padding: 15px; margin: 6px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; background: var(--primary); }
-        .btn-success { background: var(--success); } .btn-danger { background: var(--accent); } .btn-warning { background: var(--warning); }
-        #map-container { width: 100%; flex-grow: 1; border-radius: 12px; position: relative; border: 2px solid var(--surface); }
-        #map { width: 100%; height: 100%; background: #e6e9ef; }
-        .waiting-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(30, 30, 46, 0.95); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        h1, h2, h3 { text-align: center; margin: 10px 0; user-select: none; }
+        .config-group { width: 90%; max-width: 350px; background: var(--surface); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-sizing: border-box; }
+        input, select, button { width: 100%; padding: 12px; margin: 6px 0; border-radius: 8px; border: 1px solid #45475a; font-size: 16px; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        input, select { background: var(--bg); color: var(--text); }
+        button { background-color: var(--primary); color: #11111b; font-weight: bold; border: none; cursor: pointer; transition: opacity 0.2s; padding: 15px; }
+        button:active { opacity: 0.7; }
+        .btn-success { background-color: var(--success); }
+        .btn-secondary { background-color: #45475a; color: var(--text); }
+        .btn-danger { background-color: var(--accent); color: #11111b; }
+
+        #map-container, #result-map-container { width: 100%; flex-grow: 1; border-radius: 12px; overflow: hidden; margin-top: 10px; position: relative; border: 2px solid var(--surface); touch-action: pan-x pan-y; }
+        #map, #result-map { width: 100%; height: 100%; background: #e6e9ef; }
         
-        /* Carnaby Scene */
-        .door-scene { position: relative; width: 140px; height: 220px; perspective: 800px; }
-        .door { position: absolute; width: 100%; height: 100%; background: #4a3f35; border: 2px solid #2d2620; transform-origin: left; transition: transform 0.8s; z-index: 5; }
+        .top-bar { width: 100%; text-align: center; background: var(--surface); padding: 15px; border-radius: 12px; margin-bottom: 10px; box-sizing: border-box; position: relative; }
+        .target-location { font-size: 26px; font-weight: bold; color: var(--accent); margin: 5px 0;}
+        .timer-display { position: absolute; top: 15px; right: 15px; font-size: 18px; font-weight: bold; color: var(--warning); background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 8px; }
+        .timer-warning { color: var(--accent); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        .leaderboard { width: 100%; max-width: 350px; background: var(--surface); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-sizing: border-box; }
+        .score-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #45475a; }
+        .score-row:last-child { border-bottom: none; }
+
+        .map-overlay-scoreboard { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(49, 50, 68, 0.95); padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 1px solid #45475a; max-width: 270px; }
+        .overlay-score-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .bonus-text { color: var(--warning); font-size: 11px; margin-top: 2px; }
+
+        .player-pin { background-color: var(--primary); color: #11111b; border-radius: 50%; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .target-pin { background-color: var(--success); color: #11111b; border-radius: 50%; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 10px rgba(166, 227, 161, 0.8); }
+        .waiting-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(30, 30, 46, 0.95); color: white; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; display: none; box-sizing: border-box; padding: 20px; text-align: center; }
+        .offline-tag { color: var(--accent); font-size: 12px; font-weight: bold; margin-left: 5px; }
+
+        /* --- CARNABY VIP SYSTEM --- */
+        #carnaby-screen { justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        #carnaby-instruction { transition: opacity 0.5s; }
+        .carnaby-sign { font-family: "Courier New", Courier, monospace; font-weight: 900; font-size: 28px; color: #fff; text-transform: uppercase; letter-spacing: 4px; text-shadow: 0 0 5px #ff00aa, 0 0 10px #ff00aa, 0 0 20px #ff00aa, 0 0 40px #ff00aa; border: 4px dotted #f9e2af; padding: 10px 20px; background: #11111b; border-radius: 15px; margin-bottom: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 10; }
+        .door-scene { position: relative; width: 140px; height: 220px; perspective: 800px; transform-style: preserve-3d; }
+        .door-frame { position: absolute; width: 100%; height: 100%; border: 8px solid #45475a; border-bottom: none; background: #000; box-sizing: border-box; overflow: hidden; transform-style: preserve-3d; }
+        .door { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #4a3f35; border: 2px solid #2d2620; box-sizing: border-box; transform-origin: left; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); z-index: 5; backface-visibility: hidden; }
+        .door-handle { position: absolute; right: 12px; top: 50%; width: 14px; height: 14px; background: #f9e2af; border-radius: 50%; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
         .door-open .door { transform: rotateY(-85deg); }
-        .woman-figure { display: none; flex-direction: column; align-items: center; }
-        .door-open .woman-figure { display: flex; }
-        .bouncer-figure { display: none; }
-        .door-blocked .bouncer-figure { display: flex; }
+        .disco-room { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 1; }
+        .door-open .disco-room { display: block; }
+        .disco-beams { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: conic-gradient(from 0deg, transparent 0deg, rgba(255,0,170,0.6) 30deg, transparent 60deg, rgba(0,255,170,0.6) 120deg, transparent 150deg, rgba(255,255,0,0.6) 210deg, transparent 240deg, rgba(0,170,255,0.6) 300deg, transparent 360deg); animation: spinBeams 3s linear infinite; }
+        .disco-ball { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 40px; text-shadow: 0 0 15px rgba(255,255,255,0.8); animation: pulseGlow 1s infinite alternate; }
+        @keyframes spinBeams { 100% { transform: rotate(360deg); } }
+        @keyframes pulseGlow { 100% { filter: brightness(1.3) drop-shadow(0 0 10px #fff); } }
+        
+        .door-blocked .bouncer-figure, .door-blocked .speech-bubble { display: flex; }
+        .bouncer-figure { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 120px; height: 145px; display: none; flex-direction: column; align-items: center; z-index: 10; }
+        .bouncer-head { width: 40px; height: 48px; background: #d2a18c; border-radius: 40% 40% 45% 45%; position: relative; z-index: 3; box-shadow: inset -4px -4px 6px rgba(0,0,0,0.3); }
+        .bouncer-head::after { content: ''; position: absolute; bottom: 0; left: 5%; width: 90%; height: 18px; background: rgba(0,0,0,0.15); border-radius: 0 0 20px 20px; }
+        .bouncer-glasses-left, .bouncer-glasses-right { position: absolute; top: 16px; width: 15px; height: 11px; background: #111; border-radius: 2px 2px 6px 6px; box-shadow: 1px 2px 2px rgba(0,0,0,0.4); z-index: 4; }
+        .bouncer-glasses-left { left: 3px; } .bouncer-glasses-right { right: 3px; }
+        .bouncer-glasses-bridge { position: absolute; top: 18px; left: 18px; width: 4px; height: 2px; background: #111; z-index: 4; }
+        .bouncer-glasses-left::before, .bouncer-glasses-right::before { content: ''; position: absolute; top: 2px; left: 2px; width: 3px; height: 3px; background: rgba(255,255,255,0.5); border-radius: 50%; }
+        .bouncer-earpiece { position: absolute; top: 22px; right: -4px; width: 6px; height: 10px; background: #e0e0e0; border-radius: 4px; box-shadow: inset -1px -1px 2px rgba(0,0,0,0.5); }
+        .bouncer-earpiece::after { content: ''; position: absolute; top: 8px; left: 2px; width: 8px; height: 20px; border-right: 2px dotted #999; border-radius: 50%; }
+        .bouncer-neck { width: 22px; height: 12px; background: #b07e69; margin-top: -4px; z-index: 2; }
+        .bouncer-body { width: 100px; height: 95px; background: #181825; border-radius: 30px 30px 0 0; position: relative; margin-top: -6px; display: flex; justify-content: center; z-index: 4; box-shadow: inset -5px 0 10px rgba(0,0,0,0.5); }
+        .bouncer-shirt { width: 24px; height: 40px; background: #fff; clip-path: polygon(0 0, 100% 0, 60% 100%, 40% 100%); position: relative; }
+        .bouncer-tie { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 8px; height: 35px; background: #111; clip-path: polygon(20% 0, 80% 0, 100% 90%, 50% 100%, 0 90%); }
+        .bouncer-arms { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); width: 106px; height: 40px; z-index: 5; }
+        .arm-right { position: absolute; top: 8px; right: 2px; width: 65px; height: 22px; background: #151520; border-radius: 12px; transform: rotate(-20deg); border-top: 1px solid #2a2a3d; border-bottom: 2px solid #000; z-index: 5; box-shadow: inset -3px -3px 5px rgba(0,0,0,0.5); }
+        .arm-left { position: absolute; top: 0; left: 2px; width: 65px; height: 22px; background: #1a1a26; border-radius: 12px; transform: rotate(20deg); border-top: 1px solid #2a2a3d; border-bottom: 3px solid #000; z-index: 6; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        .hand-left { position: absolute; right: -2px; top: 2px; width: 16px; height: 16px; background: #d2a18c; border-radius: 50%; border: 1px solid #a37562; z-index: 7; box-shadow: inset -2px -2px 3px rgba(0,0,0,0.3); }
+        .speech-bubble { position: absolute; bottom: 150px; left: 95px; width: 140px; background: white; color: black; border-radius: 12px; padding: 10px; font-size: 14px; font-weight: bold; text-align: center; z-index: 12; box-shadow: 0 4px 8px rgba(0,0,0,0.4); display: none; animation: floatBubble 2s infinite ease-in-out; }
+        .speech-bubble::after { content: ''; position: absolute; bottom: -10px; left: 20px; border-width: 10px 10px 0; border-style: solid; border-color: white transparent transparent transparent; }
+        @keyframes floatBubble { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        
+        /* VIP Hostess */
+        .woman-figure { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 100px; height: 140px; display: flex; flex-direction: column; align-items: center; z-index: 5; }
+        .woman-hair { position: absolute; top: 0px; left: 50%; transform: translateX(-50%); width: 58px; height: 95px; background: #f4d03f; border-radius: 30px 30px 10px 10px; z-index: 1; box-shadow: inset -5px -5px 10px rgba(0,0,0,0.2); }
+        .woman-head { width: 32px; height: 40px; background: #f1c27d; border-radius: 40% 40% 50% 50%; position: relative; z-index: 3; margin-top: 10px; box-shadow: inset -3px -3px 5px rgba(0,0,0,0.2); }
+        .woman-eye { position: absolute; top: 16px; width: 4px; height: 4px; background: #111; border-radius: 50%; } .woman-eye.left { left: 8px; } .woman-eye.right { right: 8px; }
+        .woman-lips { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; background: #d90429; border-radius: 5px; }
+        .woman-neck { width: 12px; height: 10px; background: #dca75e; margin-top: -2px; z-index: 2; }
+        .woman-torso { position: relative; width: 86px; height: 85px; margin-top: -4px; display: flex; justify-content: center; z-index: 4; }
+        .woman-dress { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 76px; height: 85px; background: #d90429; clip-path: polygon(0 0, 100% 0, 65% 100%, 35% 100%); border-radius: 20px 20px 0 0; box-shadow: inset -5px 0 10px rgba(0,0,0,0.4); z-index: 1; }
+        .woman-cleavage { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 38px; height: 35px; background: #f1c27d; border-radius: 0 0 19px 19px; box-shadow: inset 0 -4px 6px rgba(0,0,0,0.3); z-index: 2; }
+        .woman-boobs { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; z-index: 3; }
+        .boob { width: 48px; height: 48px; background: #d90429; border-radius: 50%; box-shadow: inset -4px -8px 8px rgba(0,0,0,0.4), 0 8px 12px rgba(0,0,0,0.6); }
+        .woman-arm-left, .woman-arm-right { position: absolute; top: 15px; width: 14px; height: 55px; background: #f1c27d; border-radius: 7px; z-index: 6; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.2); }
+        .woman-arm-left { left: 4px; transform: rotate(25deg); transform-origin: top center; }
+        .woman-arm-right { right: 4px; transform: rotate(-25deg); transform-origin: top center; }
+        .pizza-hands { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 10; }
+        .pizza-pan { width: 84px; height: 32px; background: #cbd5e1; border-radius: 50%; border-bottom: 4px solid #94a3b8; position: relative; box-shadow: 0 12px 20px rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; }
+        .pizza-crust { width: 74px; height: 26px; background: #e76f51; border-radius: 50%; position: relative; box-shadow: inset 0 -2px 4px rgba(0,0,0,0.3); }
+        .pizza-cheese { position: absolute; top: 3px; left: 4px; width: 66px; height: 20px; background: #f4a261; border-radius: 50%; }
+        .pepperoni { position: absolute; width: 10px; height: 6px; background: #d62828; border-radius: 50%; border-bottom: 1px solid #9d0208; }
+        .pep1 { top: 2px; left: 8px; } .pep2 { top: 4px; right: 10px; } .pep3 { bottom: 2px; left: 16px; } .pep4 { bottom: 3px; right: 18px; }
+        .spaghetti-pile { position: absolute; top: -8px; left: 8px; width: 50px; height: 25px; }
+        .noodle { position: absolute; border: 2px solid #ffd166; border-radius: 50px; background: transparent; }
+        .n1 { width: 30px; height: 10px; border-bottom: 0; border-right: 0; top: 5px; left: 0; transform: rotate(15deg); }
+        .n2 { width: 25px; height: 15px; border-top: 0; border-left: 0; top: 0px; left: 15px; transform: rotate(-20deg); }
+        .n3 { width: 35px; height: 12px; border-bottom: 0; top: 8px; left: 5px; transform: rotate(-5deg); }
+        .n4 { width: 20px; height: 20px; border-top: 0; border-right: 0; top: -2px; left: 8px; transform: rotate(40deg); }
+        .n5 { width: 30px; height: 8px; border-top: 0; border-bottom: 2px solid #ffb703; top: 12px; left: 12px; }
+        .carbonara-sauce { position: absolute; top: 4px; left: 12px; width: 26px; height: 14px; background: #fff3b0; border-radius: 40% 60% 70% 30%; box-shadow: 10px 5px 0 -2px #ffeca1, -5px 8px 0 -3px #fff3b0; z-index: 2; opacity: 0.95; }
+        .pancetta { position: absolute; background: #cb4154; border-radius: 2px; z-index: 3; box-shadow: inset -1px -1px 2px rgba(0,0,0,0.4); }
+        .pc1 { top: 2px; left: 22px; width: 6px; height: 4px; transform: rotate(15deg); } .pc2 { top: 10px; left: 32px; width: 5px; height: 4px; background: #ad2831; transform: rotate(-20deg); } .pc3 { top: 14px; left: 18px; width: 6px; height: 3px; transform: rotate(45deg); }
+        .pepper { position: absolute; background: #111; width: 2px; height: 2px; border-radius: 50%; z-index: 4; }
+        .pp1 { top: 8px; left: 22px; } .pp2 { top: 10px; left: 26px; } .pp3 { top: 15px; left: 20px; } .pp4 { top: 7px; left: 16px; }
     </style>
 </head>
 <body>
 
     <div id="home-screen" class="screen active">
-        <h1>📍 GeoPin</h1>
-        <button onclick="navTo('local-setup-screen')">Pass & Play</button>
-        <button onclick="navTo('online-menu-screen')" class="btn-success">Online Multiplayer</button>
-        <button id="resume-btn" onclick="resumeHostRoom()" class="btn-warning" style="display:none;">Resume Game</button>
-    </div>
-
-    <div id="local-setup-screen" class="screen">
-        <h1>Setup</h1>
-        <input type="text" id="p1" placeholder="Player 1">
-        <select id="local-mode-select">
-            <option value="cities">Cities</option>
-            <option value="countries">Countries</option>
-            <option value="population">Population</option>
-            <option value="mountains">Mountains</option>
-            <option value="landmarks">Landmarks</option>
-        </select>
-        <button onclick="startLocalGame()">Start Game</button>
-        <button onclick="navTo('home-screen')">Back</button>
-    </div>
-
-    <div id="online-menu-screen" class="screen">
-        <h1>Online</h1>
-        <input type="text" id="my-online-name" placeholder="Name">
-        <button onclick="hostRoom()" class="btn-success">Create Room</button>
-        <input type="text" id="join-room-code" placeholder="Code">
-        <button onclick="joinRoom()">Join</button>
-        <button onclick="navTo('home-screen')">Back</button>
-    </div>
-
-    <div id="game-screen" class="screen">
-        <div id="map-container"><div id="map"></div></div>
-        <button id="confirm-btn" onclick="confirmGuess()" style="display:none;">Pin</button>
-        <div id="reconnect-overlay" class="waiting-overlay">
-            <h2>Connection Lost</h2>
-            <button onclick="manualReconnect()">Reconnect</button>
+        <h1 style="margin-top: 10vh; font-size: 40px;">📍 GeoPin</h1>
+        <div class="config-group" style="margin-top: 30px;">
+            <button onclick="navTo('local-setup-screen')">Pass & Play (Local)</button>
+            <button onclick="navTo('online-menu-screen')" class="btn-success">Online Multiplayer</button>
+            <button id="resume-btn" onclick="resumeHostRoom()" class="btn-warning" style="display: none; background-color: var(--warning); color: #11111b; margin-top: 20px;">Resume Hosted Game</button>
         </div>
     </div>
 
+    <div id="local-setup-screen" class="screen">
+        <h1>Pass & Play</h1>
+        <div class="config-group">
+            <input type="text" id="p1" placeholder="Player 1 Name (Required)">
+            <input type="text" id="p2" placeholder="Player 2 Name (Optional)">
+            <input type="text" id="p3" placeholder="Player 3 Name (Optional)">
+            <input type="text" id="p4" placeholder="Player 4 Name (Optional)">
+        </div>
+        <div class="config-group">
+            <select id="local-mode-select">
+                <option value="cities">Cities</option>
+                <option value="countries">Countries</option>
+                <option value="population">Population (Countries)</option>
+                <option value="mountains">Mountains</option>
+                <option value="landmarks">Landmarks</option>
+            </select>
+            <select id="local-round-select">
+                <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
+                <option value="7">7 Rounds</option><option value="10">10 Rounds</option>
+                <option value="15">15 Rounds</option>
+            </select>
+            <select id="local-timer-select">
+                <option value="0">Time: Unlimited</option>
+                <option value="10">Time: 10 Seconds</option>
+                <option value="30">Time: 30 Seconds</option>
+                <option value="60">Time: 1 Minute</option>
+                <option value="120">Time: 2 Minutes</option>
+            </select>
+        </div>
+        <button onclick="startLocalGame()">Start Local Game</button>
+        <button onclick="navTo('home-screen')" class="btn-secondary">Back</button>
+    </div>
+
+    <div id="online-menu-screen" class="screen">
+        <h1>Online Play</h1>
+        <div class="config-group">
+            <input type="text" id="my-online-name" placeholder="Your Name">
+        </div>
+        <div class="config-group">
+            <h3>Host a Game</h3>
+            <button onclick="hostRoom()" class="btn-success">Create Room</button>
+        </div>
+        <div class="config-group">
+            <h3>Join a Game</h3>
+            <input type="text" id="join-room-code" placeholder="Enter Room Code" style="text-transform: uppercase;">
+            <button onclick="joinRoom()">Join Room</button>
+        </div>
+        <button onclick="navTo('home-screen')" class="btn-secondary">Back</button>
+    </div>
+
+    <div id="lobby-screen" class="screen">
+        <h1>Room Code: <span id="display-room-code" style="color:var(--accent);">...</span></h1>
+        <p id="lobby-status">Waiting for players...</p>
+        <p id="lobby-error" style="color: var(--accent); display: none; text-align: center; font-size: 14px; font-weight: bold; padding: 10px;"></p>
+        <div class="leaderboard" id="lobby-players"></div>
+        <div id="host-controls" class="config-group" style="display: none;">
+            <select id="online-mode-select">
+                <option value="cities">Cities</option>
+                <option value="countries">Countries</option>
+                <option value="population">Population (Countries)</option>
+                <option value="mountains">Mountains</option>
+                <option value="landmarks">Landmarks</option>
+            </select>
+            <select id="online-round-select">
+                <option value="3">3 Rounds</option><option value="5">5 Rounds</option>
+                <option value="7">7 Rounds</option><option value="10">10 Rounds</option>
+                <option value="15">15 Rounds</option>
+            </select>
+            <select id="online-timer-select">
+                <option value="0">Time: Unlimited</option>
+                <option value="10">Time: 10 Seconds</option>
+                <option value="30">Time: 30 Seconds</option>
+                <option value="60">Time: 1 Minute</option>
+                <option value="120">Time: 2 Minutes</option>
+            </select>
+            <button onclick="startOnlineGame()" class="btn-success">Start Game</button>
+        </div>
+        <button onclick="cancelGameAndReload()" class="btn-danger" style="margin-top: 15px; width: 90%; max-width: 350px;">Leave / Reset</button>
+    </div>
+
+    <div id="pass-screen" class="screen">
+        <h1 style="margin-top: 25vh;">Round <span id="pass-round"></span></h1>
+        <h2>Turn: <span id="pass-player-name" style="color: var(--primary); font-size: 32px;"></span></h2>
+        <p style="text-align: center; margin-bottom: 40px;">Pass the phone to this player.</p>
+        <button onclick="startTurn()">I'm Ready!</button>
+    </div>
+
+    <div id="game-screen" class="screen" style="padding: 10px;">
+        <div class="top-bar">
+            <div id="ui-timer" class="timer-display" style="display: none;"></div>
+            <div style="font-size: 14px; color: var(--text);">Round <span id="ui-round">1</span> <span id="ui-player-display"></span></div>
+            <div style="margin-top: 5px;" id="ui-find-text">Find:</div>
+            <div class="target-location" id="ui-target">Target</div>
+        </div>
+        
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="waiting-overlay" class="waiting-overlay">
+                <h2 id="waiting-title" style="margin-bottom: 20px;">Waiting for others...</h2>
+                <div id="waiting-list" style="width: 100%; max-width: 300px; font-size: 18px;"></div>
+            </div>
+            <div id="reconnect-overlay" class="waiting-overlay" style="background: rgba(30, 30, 46, 0.98); z-index: 9999;">
+                <h2 style="color: var(--accent);">Connection Lost</h2>
+                <p id="reconnect-status" style="font-size: 16px; margin-bottom: 20px;">Waiting for Host network to return...</p>
+                <div class="timer-warning" style="font-size: 40px;">📡</div>
+                <button onclick="manualReconnect()" class="btn-success" style="width: 200px; margin-top: 40px; font-size: 14px;">Reconnect Manually</button>
+                <button onclick="cancelGameAndReload()" class="btn-danger" style="width: 200px; margin-top: 15px; font-size: 14px;">Leave Game</button>
+            </div>
+        </div>
+        <button id="confirm-btn" class="btn-success" onclick="confirmGuess()" style="display: none; margin-bottom: 0;">Confirm Pin</button>
+    </div>
+
+    <div id="round-map-screen" class="screen" style="padding: 10px;">
+        <div class="top-bar" style="padding: 10px;">
+            <div style="font-size: 14px; color: var(--text);">Round <span id="map-res-round">1</span> Results</div>
+            <div class="target-location" id="map-res-target" style="font-size: 20px;">Target</div>
+        </div>
+        <div id="result-map-container">
+            <div id="map-scoreboard-overlay" class="map-overlay-scoreboard"></div>
+            <div id="result-map"></div>
+        </div>
+        <button id="next-round-btn" onclick="nextRoundOrFinish()" style="margin-bottom: 0; display:none;">Continue</button>
+        <div id="waiting-host-msg" style="display:none; text-align:center; padding:15px; font-weight: bold; color: var(--primary);">Waiting for Host to continue...</div>
+    </div>
+    
     <div id="carnaby-screen" class="screen" onclick="triggerCarnaby()">
+        <p style="color: #a6adc8; margin-bottom: 40px;" id="carnaby-instruction">Tap the door...</p>
+        <div class="carnaby-sign">CARNABY</div>
         <div id="carnaby-door" class="door-scene">
-            <div class="door-frame"><div class="door"></div></div>
-            <div class="woman-figure">Hostess</div>
-            <div class="bouncer-figure">🦍</div>
+            <div class="door-frame">
+                <div class="disco-room">
+                    <div class="disco-beams"></div>
+                    <div class="disco-ball">🪩</div>
+                    <div class="woman-figure">
+                        <div class="woman-hair"></div>
+                        <div class="woman-head">
+                            <div class="woman-eye left"></div><div class="woman-eye right"></div>
+                            <div class="woman-lips"></div>
+                        </div>
+                        <div class="woman-neck"></div>
+                        <div class="woman-torso">
+                            <div class="woman-dress"></div>
+                            <div class="woman-cleavage"></div>
+                            <div class="woman-boobs"><div class="boob"></div><div class="boob"></div></div>
+                            <div class="woman-arm-left"></div><div class="woman-arm-right"></div>
+                            <div class="pizza-hands">
+                                <div class="pizza-pan">
+                                    <div class="pizza-crust">
+                                        <div class="pizza-cheese">
+                                            <div class="pepperoni pep1"></div><div class="pepperoni pep2"></div><div class="pepperoni pep3"></div><div class="pepperoni pep4"></div>
+                                            <div class="spaghetti-pile">
+                                                <div class="noodle n1"></div><div class="noodle n2"></div><div class="noodle n3"></div><div class="noodle n4"></div><div class="noodle n5"></div>
+                                                <div class="carbonara-sauce"></div>
+                                                <div class="pancetta pc1"></div><div class="pancetta pc2"></div><div class="pancetta pc3"></div>
+                                                <div class="pepper pp1"></div><div class="pepper pp2"></div><div class="pepper pp3"></div><div class="pepper pp4"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="door"><div class="door-handle"></div></div>
+            </div>
+            <div class="bouncer-figure">
+                <div class="bouncer-head">
+                    <div class="bouncer-glasses-left"></div><div class="bouncer-glasses-bridge"></div><div class="bouncer-glasses-right"></div>
+                    <div class="bouncer-earpiece"></div>
+                </div>
+                <div class="bouncer-neck"></div>
+                <div class="bouncer-body">
+                    <div class="bouncer-shirt"><div class="bouncer-tie"></div></div>
+                    <div class="bouncer-arms"><div class="arm-right"></div><div class="arm-left"><div class="hand-left"></div></div></div>
+                </div>
+            </div>
+            <div class="speech-bubble">Sorry, not today.</div>
+        </div>
+    </div>
+
+    <div id="final-results-screen" class="screen">
+        <h1 style="color: var(--success); font-size: 40px;">Game Over!</h1>
+        <h2>Final Scoreboard</h2>
+        <div class="leaderboard" id="final-leaderboard"></div>
+        <div style="display: flex; gap: 10px; width: 90%; max-width: 350px;">
+            <button id="play-again-btn" onclick="playAgain()" class="btn-success" style="display:none; margin-top:0;">Play Again</button>
+            <button onclick="cancelGameAndReload()" class="btn-danger" style="margin-top:0;">Main Menu</button>
         </div>
     </div>
 
 <script>
-    // 1. Full Database
-    const rawDb = { 
-        cities: [["Tokyo",35.6,139.6], ["London",51.5,-0.1], ["New York",40.7,-74.0]], 
-        countries: [["China",35.8,104.1,1412000000], ["India",20.5,78.9,1417000000], ["United States",37.0,-95.7,333000000]],
-        population: [["China",35.8,104.1,1412000000], ["India",20.5,78.9,1417000000], ["United States",37.0,-95.7,333000000]]
+    const rawDb = {
+        cities: [["Tokyo",35.676,139.65],["Delhi",28.613,77.209],["Shanghai",31.23,121.473],["Sao Paulo",-23.55,-46.633],["Mexico City",19.432,-99.133],["Cairo",30.044,31.235],["Mumbai",19.076,72.877],["Beijing",39.904,116.407],["Osaka",34.693,135.502],["New York",40.712,-74.006],["Karachi",24.86,67.001],["Buenos Aires",-34.603,-58.381],["Istanbul",41.008,28.978],["Kolkata",22.572,88.363],["Manila",14.599,120.984],["Lagos",6.524,3.379],["Rio de Janeiro",-22.906,-43.172],["Kinshasa",-4.441,15.266],["Los Angeles",34.052,-118.243],["Moscow",55.755,37.617],["Lahore",31.52,74.358],["Bangalore",12.971,77.594],["Paris",48.856,2.352],["Bogota",4.711,-74.072],["Jakarta",-6.208,106.845],["Lima",-12.046,-77.028],["Bangkok",13.756,100.501],["Seoul",37.566,126.978],["London",51.507,-0.127],["Tehran",35.689,51.389],["Chicago",41.878,-87.629],["Ho Chi Minh City",10.823,106.629],["Luanda",-8.839,13.289],["Kuala Lumpur",3.139,101.686],["Hong Kong",22.319,114.169],["Riyadh",24.713,46.675],["Baghdad",33.315,44.361],["Santiago",-33.448,-70.669],["Madrid",40.416,-3.703],["Toronto",43.653,-79.383],["Miami",25.761,-80.191],["Singapore",1.352,103.819],["Philadelphia",39.952,-75.165],["Atlanta",33.749,-84.387],["Barcelona",41.385,2.173],["Johannesburg",-26.204,28.047],["St Petersburg",59.931,30.36],["Washington DC",38.907,-77.036],["Dubai",25.204,55.27],["Melbourne",-37.813,144.963],["Sydney",-33.868,151.209],["Nairobi",-1.292,36.821],["San Francisco",37.774,-122.419],["Algiers",36.752,3.042],["Kabul",34.528,69.111],["Ankara",39.92,32.854],["Boston",42.36,-71.058],["Rome",41.902,12.496],["Montreal",45.501,-73.567],["Athens",37.983,23.727],["Berlin",52.52,13.405],["Vienna",48.208,16.373],["Amsterdam",52.367,4.904],["Brussels",50.85,4.351],["Copenhagen",55.676,12.568],["Stockholm",59.329,18.068],["Oslo",59.913,10.752],["Helsinki",60.169,24.938],["Warsaw",52.229,21.012],["Prague",50.088,14.42],["Budapest",47.497,19.04],["Zurich",47.376,8.541],["Geneva",46.204,6.143],["Munich",48.135,11.582],["Frankfurt",50.11,8.682],["Hamburg",53.551,9.993],["Milan",45.464,9.19],["Venice",45.44,12.315],["Florence",43.769,11.259],["Naples",40.851,14.268],["Lisbon",38.722,-9.139],["Porto",41.157,-8.629],["Dublin",53.349,-6.26],["Edinburgh",55.953,-3.188],["Manchester",53.48,-2.242],["Birmingham",52.486,-1.89],["Liverpool",53.408,-2.981],["Glasgow",55.864,-4.251],["Belfast",54.597,-5.93],["Cardiff",51.481,-3.179],["Auckland",-36.848,174.763],["Wellington",-41.286,174.776],["Christchurch",-43.532,172.636],["Brisbane",-27.469,153.025],["Perth",-31.95,115.86],["Adelaide",-34.928,138.6],["Hobart",-42.882,147.327],["Darwin",-12.463,130.845],["Canberra",-35.28,149.13],["Cape Town",-33.924,18.424],["Pretoria",-25.747,28.229],["Durban",-29.858,31.021],["Accra",5.603,-0.187],["Addis Ababa",8.98,38.757],["Casablanca",33.573,-7.589],["Dakar",14.716,-17.467],["Vancouver",49.282,-123.120],["Seattle",47.606,-122.332],["Denver",39.739,-104.990],["Houston",33.760,-95.369],["Dallas",29.760,-95.369],["Austin",32.776,-96.797],["Phoenix",30.267,-97.743],["Las Vegas",33.448,-112.074],["San Diego",32.715,-117.161],["San Antonio",29.424,-98.493],["San Jose",32.715,-117.161],["Detroit",29.760,-95.369],["Jacksonville",29.324,-98.493],["Indianapolis",30.332,-81.655],["Columbus",39.768,-86.158],["Charlotte",35.227,-80.843],["Washington",38.907,-77.036],["Boston",42.360,-71.058],["El Paso",31.761,-106.485],["Nashville",35.227,-80.843],["Portland",45.515,-122.678],["Louisville",36.162,-86.781],["Baltimore",39.290,-76.612],["Milwaukee",39.768,-86.158],["Albuquerque",31.761,-106.485],["Tucson",33.448,-112.074],["Fresno",36.746,-119.772],["Sacramento",37.338,-121.886],["Kansas City",39.099,-94.578],["Mesa",33.448,-112.074],["Omaha",39.099,-94.578],["Colorado Springs",39.739,-104.990],["Raleigh",35.227,-80.843],["Oakland",38.581,-121.494],["Minneapolis",43.038,-87.906],["Tulsa",32.222,-110.926],["Cleveland",39.961,-82.998],["Wichita",36.162,-86.781],["Arlington",32.735,-97.108],["New Orleans",29.951,-90.071],["Bakersfield",35.373,-119.018],["Tampa",25.761,-80.191],["Honolulu",32.715,-117.161]],
+        countries: [["Afghanistan",33.939,67.709,41128000],["Albania",41.153,20.168,2842000],["Algeria",28.033,1.659,44903000],["Andorra",42.506,1.521,79800],["Angola",-11.202,17.873,35588000],["Antigua and Barbuda",17.060,-61.796,93700],["Argentina",-38.416,-63.616,46234000],["Armenia",40.069,45.038,2780000],["Australia",-25.274,133.775,26177000],["Austria",47.516,14.55,8939000],["Azerbaijan",40.143,47.576,10139000],["Bahamas",25.034,-77.396,409000],["Bahrain",25.93,50.637,1472000],["Bangladesh",23.684,90.356,171186000],["Barbados",13.193,-59.543,281000],["Belarus",53.709,27.953,9228000],["Belgium",50.503,4.469,11685000],["Belize",17.189,-88.497,405000],["Benin",9.307,2.315,13352000],["Bhutan",27.514,90.433,782000],["Bolivia",-16.29,-63.588,12224000],["Bosnia and Herzegovina",43.915,17.679,3233000],["Botswana",-22.328,24.684,2630000],["Brazil",-14.235,-51.925,215313000],["Brunei",4.535,114.727,449000],["Bulgaria",42.733,25.485,6793000],["Burkina Faso",12.238,-1.561,22673000],["Burundi",-3.373,29.918,12889000],["Cabo Verde",16.538,-23.041,593000],["Cambodia",12.565,104.99,16767000],["Cameroon",3.848,11.502,27914000],["Canada",56.13,-106.346,38929000],["Central African Republic",6.611,20.939,5579000],["Chad",15.454,18.732,17723000],["Chile",-35.675,-71.542,19603000],["China",35.861,104.195,1412175000],["Colombia",4.57,-74.297,51874000],["Comoros",-11.645,43.333,836000],["Congo",-0.228,15.827,5970000],["Costa Rica",9.748,-83.753,5180000],["Croatia",45.1,-15.2,3854000],["Cuba",21.521,-77.781,11212000],["Cyprus",35.126,33.429,1244000],["Czechia",49.817,15.472,10516000],["DR Congo",-4.322,15.307,99010000],["Denmark",56.263,9.501,5903000],["Djibouti",11.825,42.59,1120000],["Dominica",15.414,-61.370,72000],["Dominican Republic",18.735,-70.162,11228000],["Ecuador",-1.831,-78.183,18001000],["Egypt",26.82,30.802,110990000],["El Salvador",13.794,-88.896,6336000],["Equatorial Guinea",1.650,10.267,1674000],["Eritrea",15.179,39.782,3684000],["Estonia",58.595,25.013,1326000],["Eswatini",-26.522,31.465,1192000],["Ethiopia",9.145,40.489,123379000],["Fiji",-17.713,178.065,929000],["Finland",61.924,25.748,5540000],["France",46.227,2.213,67971000],["Gabon",-0.803,11.609,2388000],["Gambia",13.443,-15.310,2705000],["Georgia",42.315,43.356,3728000],["Germany",51.165,10.451,83369000],["Ghana",7.946,-1.023,33475000],["Greece",39.074,21.824,10423000],["Grenada",12.116,-61.679,125000],["Guatemala",15.783,-90.23,17357000],["Guinea",9.945,-9.696,13859000],["Guinea-Bissau",11.803,-15.180,2105000],["Guyana",4.860,-58.930,808000],["Haiti",18.971,-72.285,11584000],["Honduras",15.199,-86.241,10432000],["Hungary",47.162,19.503,9689000],["Iceland",64.963,-19.02,382000],["India",20.593,78.962,1417173000],["Indonesia",-0.789,113.921,275501000],["Iran",32.427,53.688,88550000],["Iraq",33.223,43.679,44496000],["Ireland",53.412,-8.243,5127000],["Israel",31.046,34.851,9550000],["Italy",41.871,12.567,58940000],["Ivory Coast",7.539,-5.547,28160000],["Jamaica",18.109,-77.297,2827000],["Japan",36.204,138.252,125124000],["Jordan",30.585,36.238,11285000],["Kazakhstan",48.019,66.923,19644000],["Kenya",-0.023,37.906,54027000],["Kiribati",1.836,-157.376,131000],["Kuwait",29.311,47.481,4268000],["Kyrgyzstan",41.204,74.766,6974000],["Laos",19.856,102.495,7529000],["Latvia",56.879,24.603,1883000],["Lebanon",33.854,35.862,5489000],["Lesotho",-29.609,28.233,2305000],["Liberia",6.428,-9.429,5302000],["Libya",26.335,17.228,6812000],["Liechtenstein",47.141,9.521,39000],["Lithuania",55.169,23.881,2750000],["Luxembourg",49.815,6.129,650000],["Madagascar",-18.766,46.869,29611000],["Malawi",-13.254,34.301,20405000],["Malaysia",4.21,101.975,33938000],["Maldives",3.202,73.220,523000],["Mali",17.57,-3.996,22593000],["Malta",35.937,14.375,533000],["Marshall Islands",7.131,171.184,41000],["Mauritania",21.007,-10.940,4736000],["Mauritius",-20.348,57.552,1262000],["Mexico",23.634,-102.552,127504000],["Micronesia",7.425,150.550,114000],["Moldova",47.411,28.369,2604000],["Monaco",43.738,7.424,36000],["Mongolia",46.862,103.846,3398000],["Montenegro",42.708,19.374,617000],["Morocco",31.791,-7.092,37457000],["Mozambique",-18.665,35.529,32969000],["Myanmar",21.916,95.955,54179000],["Namibia",-22.957,18.490,2567000],["Nauru",-0.522,166.931,12000],["Nepal",28.394,84.124,30547000],["Netherlands",52.132,5.291,17703000],["New Zealand",-40.90,174.885,5124000],["Nicaragua",12.865,-85.207,6948000],["Niger",17.607,8.081,26207000],["Nigeria",9.081,8.675,218541000],["North Korea",40.339,127.51,26069000],["North Macedonia",41.608,21.745,2065000],["Norway",60.472,8.468,5434000],["Oman",21.512,55.923,4576000],["Pakistan",30.375,69.345,235824000],["Palau",7.514,134.582,18000],["Panama",8.537,-80.782,4408000],["Papua New Guinea",-6.314,143.955,10142000],["Paraguay",-23.442,-58.443,6780000],["Peru",-9.189,-75.015,34049000],["Philippines",12.879,121.774,115559000],["Poland",51.919,19.145,37654000],["Portugal",39.399,-8.224,10376000],["Qatar",25.354,51.183,2695000],["Romania",45.943,24.966,19042000],["Russia",61.524,105.318,143551000],["Rwanda",-1.94,29.873,13776000],["Saint Kitts and Nevis",17.357,-62.782,47000],["Saint Lucia",13.909,-60.978,179000],["Saint Vincent and the Grenadines",13.252,-61.197,103000],["Samoa",-13.759,-172.104,222000],["San Marino",43.942,12.457,33000],["Sao Tome and Principe",0.186,6.613,227000],["Saudi Arabia",23.885,45.079,36408000],["Senegal",14.497,-14.452,17316000],["Serbia",44.016,21.005,7144000],["Seychelles",-4.679,55.491,106000],["Sierra Leone",8.460,-11.779,8605000],["Singapore",1.352,103.819,5637000],["Slovakia",48.669,19.699,5431000],["Slovenia",46.151,14.995,2119000],["Solomon Islands",-9.645,160.156,724000],["Somalia",5.152,46.199,17597000],["South Africa",-30.559,22.937,59893000],["South Korea",35.907,127.766,51628000],["South Sudan",6.876,31.306,10913000],["Spain",40.463,-3.749,47778000],["Sri Lanka",7.873,80.771,21832000],["Sudan",16.126,30.217,46874000],["Suriname",3.919,-56.027,618000],["Sweden",60.128,18.643,10549000],["Switzerland",46.818,8.227,8776000],["Syria",34.802,38.996,22125000],["Tajikistan",38.861,71.276,9952000],["Tanzania",-6.369,34.888,65497000],["Thailand",15.87,100.992,71697000],["Timor-Leste",-8.874,125.727,1340000],["Togo",8.619,0.824,8848000],["Tonga",-21.178,-175.198,106000],["Trinidad and Tobago",10.691,-61.222,1531000],["Tunisia",33.886,9.537,12356000],["Turkey",38.963,35.243,85341000],["Turkmenistan",38.969,59.556,6430000],["Tuvalu",-7.109,177.649,11000],["Uganda",1.373,32.29,47249000],["Ukraine",48.379,31.165,39701000],["United Arab Emirates",23.424,53.847,9441000],["United Kingdom",55.378,-3.435,67736000],["United States",37.09,-95.712,333287000],["Uruguay",-32.522,-55.765,3422000],["Uzbekistan",41.377,64.585,35648000],["Vanuatu",-15.376,166.959,326000],["Venezuela",9.081,-66.18,28301000],["Vietnam",14.058,108.277,98186000],["Yemen",15.552,48.516,33696000],["Zambia",-13.133,27.849,20017000],["Zimbabwe",-19.015,29.154,16320000]],
+        mountains: [["Mount Everest",27.988,86.925],["K2",35.881,76.515],["Denali",63.069,-151.007],["Mount Kilimanjaro",-3.067,37.355],["Mont Blanc",45.832,6.865],["Matterhorn",45.976,7.658],["Mount Fuji",35.36,138.727],["Aconcagua",-32.653,-70.01],["Table Mountain",-33.962,18.409],["Mount Vesuvius",40.822,14.426]],
+        landmarks: [["Eiffel Tower",48.858,2.294],["Statue of Liberty",40.689,-74.044],["Taj Mahal",27.175,78.042],["Colosseum",41.89,12.492],["Machu Picchu",-13.163,-72.545],["Pyramids of Giza",29.979,31.134],["Great Wall of China",40.431,116.57],["Stonehenge",51.178,-1.826],["Sydney Opera House",-33.856,151.215],["Burj Khalifa",25.197,55.274]]
     };
-    const db = { cities: rawDb.cities.map(i=>({name:i[0],lat:i[1],lng:i[2]})), countries: rawDb.countries.map(i=>({name:i[0],lat:i[1],lng:i[2],pop:i[3]})), population: rawDb.population.map(i=>({name:i[0],lat:i[1],lng:i[2],pop:i[3]})) };
+    
+    const db = {
+        cities: rawDb.cities.map(i => ({ name: i[0], lat: i[1], lng: i[2] })),
+        countries: rawDb.countries.map(i => ({ name: i[0], lat: i[1], lng: i[2], pop: i[3] })),
+        population: rawDb.countries.map(i => ({ name: i[0], lat: i[1], lng: i[2], pop: i[3] })),
+        mountains: rawDb.mountains.map(i => ({ name: i[0], lat: i[1], lng: i[2] })),
+        landmarks: rawDb.landmarks.map(i => ({ name: i[0], lat: i[1], lng: i[2] }))
+    };
 
-    // 2. Variables
-    let players = [], currentRound = 1, isHost = false, mode = 'local', peer = null, myId = '', targetRoomCode = '', lastPing = Date.now();
+    let mode = 'local'; let gameCategory = 'cities'; let isHost = false; let players = []; let totalRounds = 3; let currentRound = 1; let currentLocations = []; let currentTarget = null; let activeScreen = 'home-screen';
+    let timeLimit = 0; let timerInterval = null; let turnStartTime = 0; let currentPlayerIndex = 0; 
+    let peer = null; let connections = {}; let hostConn = null; let myId = ''; let originalMyId = null; let targetRoomCode = ''; let onlineGuessesReceived = 0; let autoReconnectInterval = null;
+    let map = null, currentMarker = null, currentGuess = null; let resultMap = null, resultMarkers = [];
+    let carnabyTriggered = false; let carnabyTimeout = null;
+    let hostPingInterval = null; let watchdogInterval = null; let lastPingTime = 0;
 
-    // 3. Logic
-    function navTo(screenId) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId).classList.add('active');
+    window.onload = function() { const savedState = localStorage.getItem('geopin_save'); if (savedState) document.getElementById('resume-btn').style.display = 'block'; };
+    function cancelGameAndReload() { localStorage.removeItem('geopin_save'); location.reload(); }
+    function navTo(screenId) { activeScreen = screenId; document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); if (isHost && mode === 'online') saveHostState(); }
+    function shuffleArray(array) { let curId = array.length; while (0 !== curId) { let randId = Math.floor(Math.random() * curId); curId -= 1; let tmp = array[curId]; array[curId] = array[randId]; array[randId] = tmp; } return array; }
+
+    function startLocalGame() {
+        mode = 'local'; players = [];
+        for(let i=1; i<=4; i++) { const name = document.getElementById(`p${i}`).value.trim(); if(name) players.push({ id: `p${i}`, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null }); }
+        if(players.length === 0) players.push({ id: 'p1', name: "Player 1", totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
+        totalRounds = parseInt(document.getElementById('local-round-select').value); timeLimit = parseInt(document.getElementById('local-timer-select').value); gameCategory = document.getElementById('local-mode-select').value;
+        currentLocations = shuffleArray([...db[gameCategory]]).slice(0, totalRounds); currentRound = 1;
+        initMap(); setupLocalRound();
     }
 
-    function initMap() {
-        if (window.map) map.remove();
-        map = L.map('map', { worldCopyJump: false, maxBounds: [[-90,-180],[90,180]] });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
-        map.on('click', (e) => {
-            currentGuess = { lat: e.latlng.lat, lng: ((e.latlng.lng + 180) % 360) - 180 };
-            document.getElementById('confirm-btn').style.display = 'block';
+    function setupLocalRound() { currentTarget = currentLocations[currentRound - 1]; currentPlayerIndex = 0; players.forEach(p => p.hasGuessed = false); document.getElementById('pass-round').innerText = currentRound; document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name; navTo('pass-screen'); }
+
+    function generateRoomCode() { return Math.random().toString(36).substring(2, 6).toUpperCase(); }
+
+    function initPeer(onOpen, customCode = null) {
+        const name = document.getElementById('my-online-name').value.trim() || "Player"; 
+        const codeToUse = customCode || generateRoomCode();
+        peer = new Peer('geopin-' + codeToUse, { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] } }); 
+        peer.on('open', (id) => { 
+            if (!originalMyId) originalMyId = id;
+            myId = id; 
+            if(isHost && !customCode) { 
+                players = []; 
+                players.push({ id: myId, name: name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null }); 
+                targetRoomCode = codeToUse; 
+            } 
+            if(onOpen) onOpen(id); 
+        });
+        peer.on('error', (err) => { 
+            if(!isHost) document.getElementById('reconnect-overlay').style.display = 'flex'; 
+            else { document.getElementById('lobby-error').style.display = 'block'; document.getElementById('lobby-error').innerText = "Network Error (" + err.type + ")."; } 
         });
     }
 
-    function startLocalGame() {
-        mode = 'local';
-        players = [{id: 'p1', name: document.getElementById('p1').value || 'P1', totalScore: 0, online: true}];
-        initMap(); navTo('game-screen');
+    function hostRoom() { 
+        mode = 'online'; isHost = true; navTo('lobby-screen'); 
+        initPeer((id) => { 
+            document.getElementById('display-room-code').innerText = targetRoomCode; 
+            document.getElementById('host-controls').style.display = 'block'; 
+            updateLobbyUI(); saveHostState(); 
+            peer.on('connection', (conn) => { 
+                connections[conn.peer] = conn; 
+                conn.on('data', (data) => handleHostData(conn, data)); 
+                conn.on('close', () => handleGuestDrop(conn.peer)); 
+            }); 
+            clearInterval(hostPingInterval);
+            hostPingInterval = setInterval(() => { if (isHost && mode === 'online') broadcast({ type: 'PING' }); }, 2000);
+        }); 
     }
 
-    // 4. Robust Networking
-    function initPeer(onOpen) {
-        peer = new Peer('geopin-' + (isHost ? targetRoomCode : 'guest'), { config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] } });
-        peer.on('open', onOpen);
+    function resumeHostRoom() {
+        const savedRaw = localStorage.getItem('geopin_save'); if (!savedRaw) return; const state = JSON.parse(savedRaw); mode = 'online'; isHost = true;
+        players = state.players; currentLocations = state.currentLocations; totalRounds = state.totalRounds; timeLimit = state.timeLimit; gameCategory = state.gameCategory; currentRound = state.currentRound; targetRoomCode = state.roomCode;
+        players.forEach(p => { if(p.id !== 'geopin-' + targetRoomCode) p.online = false; });
+        document.getElementById('display-room-code').innerText = targetRoomCode;
+        if (state.activeScreen === 'game-screen') { initMap(); startTurn(); } else if (state.activeScreen === 'round-map-screen') { currentTarget = currentLocations[currentRound - 1]; showRoundMapResults(); } else { document.getElementById('host-controls').style.display = 'block'; updateLobbyUI(); navTo('lobby-screen'); }
+        initPeer((id) => { 
+            updateLobbyUI(); 
+            peer.on('connection', (conn) => { 
+                connections[conn.peer] = conn; 
+                conn.on('data', (data) => handleHostData(conn, data)); 
+                conn.on('close', () => handleGuestDrop(conn.peer)); 
+            }); 
+            clearInterval(hostPingInterval);
+            hostPingInterval = setInterval(() => { if (isHost && mode === 'online') broadcast({ type: 'PING' }); }, 2000);
+        }, targetRoomCode);
+    }
+
+    function handleGuestDrop(peerId) { let p = players.find(pl => pl.connId === peerId); if(p) { p.online = false; updateLobbyUI(); updateWaitingScreenUI(); broadcastStateUpdate(); saveHostState(); } delete connections[peerId]; }
+    function saveHostState() { if (!isHost || mode !== 'online') return; localStorage.setItem('geopin_save', JSON.stringify({ roomCode: targetRoomCode, players: players, currentLocations: currentLocations, totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory, currentRound: currentRound, activeScreen: activeScreen })); }
+    
+    function joinRoom() { 
+        mode = 'online'; isHost = false; targetRoomCode = document.getElementById('join-room-code').value.trim().toUpperCase(); 
+        if(!targetRoomCode) return alert("Enter code"); navTo('lobby-screen'); document.getElementById('display-room-code').innerText = targetRoomCode; 
+        initPeer((id) => establishGuestConnection(targetRoomCode)); 
+    }
+    
+    function establishGuestConnection(code) { 
+        hostConn = peer.connect('geopin-' + code, { reliable: true }); 
+        const ct = setTimeout(() => { if (!hostConn.open) document.getElementById('lobby-error').style.display = 'block'; }, 10000); 
+        hostConn.on('open', () => { 
+            clearTimeout(ct); clearInterval(autoReconnectInterval); clearInterval(watchdogInterval);
+            document.getElementById('reconnect-overlay').style.display = 'none'; 
+            lastPingTime = Date.now();
+            
+            hostConn.send({ type: 'JOIN', id: originalMyId || myId, name: document.getElementById('my-online-name').value.trim() || "Player" }); 
+
+            watchdogInterval = setInterval(() => {
+                if (mode === 'online' && !isHost && activeScreen === 'game-screen') {
+                    if (Date.now() - lastPingTime > 6000) {
+                        document.getElementById('reconnect-overlay').style.display = 'flex';
+                        document.getElementById('reconnect-status').innerText = "Waiting for Host network to return...";
+                    }
+                }
+            }, 1000);
+        }); 
+        hostConn.on('close', () => startAutoReconnect()); 
+        hostConn.on('data', (data) => handleGuestData(data)); 
     }
 
     function manualReconnect() {
-        if (peer) peer.destroy();
-        initPeer(() => establishGuestConnection(targetRoomCode));
+        document.getElementById('reconnect-status').innerText = "Attempting manual reconnect...";
+        if (peer) { peer.destroy(); peer = null; }
+        clearInterval(autoReconnectInterval); clearInterval(watchdogInterval); hostConn = null;
+        initPeer((id) => { establishGuestConnection(targetRoomCode); });
     }
 
-    setInterval(() => {
-        if (isHost && mode === 'online') broadcast({ type: 'PING' });
-        else if (mode === 'online' && Date.now() - lastPing > 6000) {
-            document.getElementById('reconnect-overlay').style.display = 'flex';
+    function startAutoReconnect() { if(activeScreen === 'home-screen' || activeScreen === 'local-setup-screen') return; document.getElementById('reconnect-overlay').style.display = 'flex'; clearInterval(autoReconnectInterval); autoReconnectInterval = setInterval(() => { if(peer && peer.disconnected) peer.reconnect(); establishGuestConnection(targetRoomCode); }, 5000); }
+    
+    function updateLobbyUI() { const board = document.getElementById('lobby-players'); board.innerHTML = ''; players.forEach(p => { let status = p.online ? '' : '<span class="offline-tag">(Offline)</span>'; let you = (p.id === myId || p.id === originalMyId) ? '<small style="color:var(--primary);">(You)</small>' : ''; board.innerHTML += `<div class="score-row"><div>${p.name} ${status}</div>${you}</div>`; }); if(isHost) document.getElementById('lobby-status').innerText = `Players: ${players.length}/4`; }
+    function updateWaitingScreenUI() { const list = document.getElementById('waiting-list'); list.innerHTML = ''; players.forEach(p => { let status = !p.online ? '🔴 Offline' : (p.hasGuessed ? '✅ Ready' : '⏳ Thinking...'); let color = !p.online ? 'var(--accent)' : (p.hasGuessed ? 'var(--success)' : 'var(--warning)'); list.innerHTML += `<div style="display:flex; justify-content:space-between; margin:10px 0; border-bottom:1px solid #45475a; padding-bottom:5px;"><span>${p.name}</span> <span style="color:${color}">${status}</span></div>`; }); }
+
+    function handleHostData(conn, data) {
+        if (data.type === 'JOIN') {
+            let existingPlayer = players.find(p => p.id === data.id);
+            if (existingPlayer) { existingPlayer.online = true; existingPlayer.connId = conn.peer; conn.send({ type: 'SYNC_STATE', state: buildGameState() }); } 
+            else players.push({ id: data.id, connId: conn.peer, name: data.name, totalScore: 0, roundScore: 0, bonusScore: 0, roundDist: 0, lastGuess: null, timeTaken: 0, hasGuessed: false, online: true, guessedPop: null, guessedCountryName: null });
+            updateLobbyUI(); broadcastStateUpdate(); saveHostState();
+        } else if (data.type === 'GUESS') {
+            const p = players.find(p => p.id === data.id);
+            if (p && !p.hasGuessed) { p.lastGuess = data.guess; p.timeTaken = data.timeTaken; p.hasGuessed = true; onlineGuessesReceived++; updateWaitingScreenUI(); broadcastStateUpdate(); saveHostState(); let expected = players.filter(pl => pl.online).length; if (onlineGuessesReceived >= expected) finishOnlineRound(); }
         }
-    }, 2000);
-
-    // 5. Final Carnaby
-    function triggerCarnaby() {
-        // ... (Winner logic + timeout to show scoreboard)
-        navTo('final-results-screen');
     }
+
+    function handleGuestData(data) {
+        if (data.type === 'PING') { lastPingTime = Date.now(); document.getElementById('reconnect-overlay').style.display = 'none'; }
+        else if (data.type === 'LOBBY_UPDATE') { players = data.players; updateLobbyUI(); updateWaitingScreenUI(); }
+        else if (data.type === 'SYNC_STATE') { players = data.state.players; currentLocations = data.state.currentLocations; totalRounds = data.state.totalRounds; timeLimit = data.state.timeLimit; gameCategory = data.state.gameCategory; currentRound = data.state.currentRound; currentTarget = currentLocations[currentRound - 1]; updateLobbyUI(); updateWaitingScreenUI(); if(data.state.activeScreen === 'game-screen') { initMap(); startTurn(); let me = players.find(p => p.id === originalMyId || p.id === myId); if(me && me.hasGuessed) { document.getElementById('confirm-btn').style.display = 'none'; document.getElementById('waiting-overlay').style.display = 'flex'; } } else if (data.state.activeScreen === 'round-map-screen') showRoundMapResults(); else if (data.state.activeScreen === 'lobby-screen') { document.getElementById('lobby-status').innerText = "Connected!"; navTo('lobby-screen'); } else if (data.state.activeScreen === 'carnaby-screen' || data.state.activeScreen === 'final-results-screen') showFinalResults(); }
+        else if (data.type === 'START_GAME') { players = data.players; currentLocations = data.locations; totalRounds = data.totalRounds; timeLimit = data.timeLimit; gameCategory = data.gameCategory; currentRound = 1; initMap(); startTurn(); }
+        else if (data.type === 'ROUND_RESULTS') { players = data.players; showRoundMapResults(); }
+        else if (data.type === 'NEXT_ROUND') { currentRound = data.round; startTurn(); }
+        else if (data.type === 'END_GAME') { players = data.players; showFinalResults(); }
+        else if (data.type === 'RETURN_TO_LOBBY') { players = data.players; updateLobbyUI(); updateWaitingScreenUI(); navTo('lobby-screen'); document.getElementById('lobby-status').innerText = "Host setting up..."; }
+    }
+
+    function buildGameState() { return { players: players, currentLocations: currentLocations, totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory, currentRound: currentRound, activeScreen: activeScreen }; }
+    function broadcastStateUpdate() { Object.values(connections).forEach(conn => { if(conn.open) conn.send({ type: 'LOBBY_UPDATE', players: players }); }); }
+    function broadcast(data) { Object.values(connections).forEach(conn => { if(conn.open) conn.send(data); }); }
+
+    function startOnlineGame() {
+        totalRounds = parseInt(document.getElementById('online-round-select').value); timeLimit = parseInt(document.getElementById('online-timer-select').value); gameCategory = document.getElementById('online-mode-select').value;
+        currentLocations = shuffleArray([...db[gameCategory]]).slice(0, totalRounds); currentRound = 1;
+        broadcast({ type: 'START_GAME', players: players, locations: currentLocations, totalRounds: totalRounds, timeLimit: timeLimit, gameCategory: gameCategory });
+        initMap(); startTurn();
+    }
+
+    async function finishOnlineRound() { await processAllGuessesAndBonuses(); saveHostState(); broadcast({ type: 'ROUND_RESULTS', players: players }); showRoundMapResults(); }
+    
+    function playAgain() {
+        players.forEach(p => { p.totalScore = 0; p.roundScore = 0; p.bonusScore = 0; p.roundDist = 0; p.lastGuess = null; p.hasGuessed = false; p.timeTaken = 0; p.guessedPop = null; p.guessedCountryName = null; });
+        if (mode === 'online' && isHost) { broadcast({ type: 'RETURN_TO_LOBBY', players: players }); navTo('lobby-screen'); } else if (mode === 'local') navTo('local-setup-screen');
+    }
+
+    function initMap() {
+        if (map !== null) map.remove(); 
+        map = L.map('map', { 
+            center: [20, 0], 
+            zoom: 2, 
+            zoomControl: false,
+            worldCopyJump: false,
+            maxBounds: [[-90, -180], [90, 180]]
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+        map.on('click', function(e) { 
+            let wrappedLng = ((e.latlng.lng + 180) % 360 + 360) % 360 - 180;
+            currentGuess = { lat: Math.max(-90, Math.min(90, e.latlng.lat)), lng: wrappedLng };
+            if (currentMarker) map.removeLayer(currentMarker); 
+            currentMarker = L.marker([currentGuess.lat, currentGuess.lng]).addTo(map); 
+            document.getElementById('confirm-btn').style.display = 'block'; 
+        });
+    }
+
+    function startTurn() {
+        navTo('game-screen'); currentTarget = currentLocations[currentRound - 1]; players.forEach(p => p.hasGuessed = false);
+        document.getElementById('ui-round').innerText = currentRound + " / " + totalRounds;
+        document.getElementById('ui-player-display').innerText = mode === 'local' ? "| " + players[currentPlayerIndex].name + "'s Turn" : "";
+        if (gameCategory === 'population') { document.getElementById('ui-find-text').innerText = "Find a Country with Population:"; document.getElementById('ui-target').innerText = currentTarget.pop.toLocaleString(); }
+        else { document.getElementById('ui-find-text').innerText = "Find:"; document.getElementById('ui-target').innerText = currentTarget.name; }
+        document.getElementById('waiting-title').innerText = "Waiting for others..."; document.getElementById('waiting-list').innerHTML = ""; document.getElementById('waiting-overlay').style.display = 'none';
+        if (currentMarker) map.removeLayer(currentMarker); currentGuess = null; document.getElementById('confirm-btn').style.display = 'none'; map.setView([20, 0], 2); setTimeout(() => map.invalidateSize(), 100); 
+        turnStartTime = Date.now(); const timerUI = document.getElementById('ui-timer');
+        if (timeLimit > 0) {
+            timerUI.style.display = 'block'; timerUI.classList.remove('timer-warning'); let timeRemaining = timeLimit; timerUI.innerText = timeRemaining + "s";
+            clearInterval(timerInterval); timerInterval = setInterval(() => { timeRemaining--; timerUI.innerText = timeRemaining + "s"; if(timeRemaining <= 5) timerUI.classList.add('timer-warning'); if(timeRemaining <= 0) { clearInterval(timerInterval); confirmGuess(); } }, 1000);
+        } else timerUI.style.display = 'none';
+    }
+
+    async function confirmGuess() {
+        clearInterval(timerInterval); document.getElementById('confirm-btn').style.display = 'none';
+        let timeTaken = Date.now() - turnStartTime; let guessData = currentGuess ? { lat: currentGuess.lat, lng: currentGuess.lng } : null;
+        if (mode === 'local') {
+            const player = players[currentPlayerIndex]; player.lastGuess = guessData; player.timeTaken = timeTaken; player.hasGuessed = true;
+            currentPlayerIndex++; if (currentPlayerIndex < players.length) { navTo('pass-screen'); document.getElementById('pass-player-name').innerText = players[currentPlayerIndex].name; } else { await processAllGuessesAndBonuses(); showRoundMapResults(); }
+        } else if (mode === 'online') {
+            document.getElementById('waiting-overlay').style.display = 'flex'; const me = players.find(p => p.id === originalMyId || p.id === myId); me.hasGuessed = true; updateWaitingScreenUI();
+            if (isHost) { me.lastGuess = guessData; me.timeTaken = timeTaken; onlineGuessesReceived++; broadcastStateUpdate(); saveHostState(); let expected = players.filter(pl => pl.online).length; if (onlineGuessesReceived >= expected) await finishOnlineRound(); } else hostConn.send({ type: 'GUESS', id: originalMyId || myId, guess: guessData, timeTaken: timeTaken });
+        }
+    }
+
+    // Fuzzy String Matching Implementation
+    function normalize(name) {
+        if (!name) return "";
+        return name.toLowerCase()
+            .replace(/\b(the |republic of |kingdom of |federative |state of |people's republic of |islamic republic of |united republic of |democratic republic of )\b/g, '')
+            .replace(/[^a-z0-9]/g, '');
+    }
+
+    async function processAllGuessesAndBonuses() {
+        document.getElementById('waiting-overlay').style.display = 'flex'; document.getElementById('waiting-title').innerText = "Calculating Scores...";
+        
+        for (let p of players) {
+            p.bonusScore = 0; p.guessedPop = null; p.guessedCountryName = null;
+            if (!p.lastGuess) { p.roundDist = 99999; p.roundScore = 0; continue; }
+            
+            const distKm = getDist(p.lastGuess.lat, p.lastGuess.lng, currentTarget.lat, currentTarget.lng); 
+            p.roundDist = distKm;
+            let baseScore = 0;
+
+            if (gameCategory === 'population' || gameCategory === 'countries') {
+                try {
+                    let res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lastGuess.lat}&longitude=${p.lastGuess.lng}&localityLanguage=en`);
+                    let data = await res.json(); 
+                    let apiCountry = data.countryName || "";
+                    let t = normalize(currentTarget.name), c = normalize(apiCountry);
+
+                    if (c && t && (t === c || t.includes(c) || c.includes(t))) { 
+                        baseScore = 5000; 
+                    } else if (gameCategory === 'population' && c) {
+                        let gdC = db.population.find(dbC => { let dbName = normalize(dbC.name); return dbName === c || dbName.includes(c) || c.includes(dbName); });
+                        if (gdC) { 
+                            baseScore = Math.floor(5000 * (Math.min(currentTarget.pop, gdC.pop) / Math.max(currentTarget.pop, gdC.pop))); 
+                            p.guessedPop = gdC.pop; p.guessedCountryName = gdC.name; 
+                        }
+                    } else if (gameCategory === 'countries') {
+                        let safeDist = Math.max(0, distKm - 750);
+                        baseScore = Math.floor(5000 * Math.exp(-safeDist / 3500)); 
+                    }
+                } catch (e) { 
+                    if (gameCategory === 'countries') {
+                        let safeDist = Math.max(0, distKm - 750);
+                        baseScore = Math.floor(5000 * Math.exp(-safeDist / 3500)); 
+                    }
+                }
+            } else { 
+                let safeDist = Math.max(0, distKm - 30);
+                baseScore = Math.floor(5000 * Math.exp(-safeDist / 2500)); 
+            }
+            
+            // STRICT BOUNDARY: Base score never exceeds 5,000 points.
+            p.roundScore = Math.min(5000, Math.max(0, baseScore));
+        }
+
+        let directHits = players.filter(p => p.roundScore === 5000 && p.lastGuess).sort((a, b) => a.timeTaken - b.timeTaken);
+        if (directHits.length > 0) {
+            directHits.forEach((p, idx) => {
+                let speedBonus = (directHits.length === 1 ? 100 : Math.round(100 * (1 - (idx / (directHits.length - 1)))));
+                p.bonusScore = speedBonus;
+                // STRICT BOUNDARY: Total combined round score capped exactly at 5,100 points.
+                p.roundScore = Math.min(5100, p.roundScore + speedBonus);
+            });
+        }
+        players.forEach(p => p.totalScore += p.roundScore);
+    }
+
+    function showRoundMapResults() {
+        navTo('round-map-screen'); document.getElementById('map-res-round').innerText = currentRound;
+        document.getElementById('map-res-target').innerText = gameCategory === 'population' ? currentTarget.name + " (" + currentTarget.pop.toLocaleString() + ")" : currentTarget.name;
+        if (mode === 'online') onlineGuessesReceived = 0; 
+        document.getElementById('next-round-btn').style.display = (mode === 'local' || isHost) ? 'block' : 'none';
+        document.getElementById('waiting-host-msg').style.display = (mode === 'online' && !isHost) ? 'block' : 'none';
+        
+        const sorted = [...players].sort((a, b) => b.roundScore - a.roundScore);
+        const overlay = document.getElementById('map-scoreboard-overlay'); 
+        overlay.innerHTML = `<div style="font-weight:bold; color:var(--primary); margin-bottom:8px; border-bottom:1px solid #45475a; padding-bottom:4px;">Scores</div>`;
+        sorted.forEach((p, idx) => {
+            let distText = gameCategory === 'population' ? (p.roundScore >= 5000 ? "Exact Country!" : (p.guessedPop ? `${p.guessedCountryName} (${p.guessedPop.toLocaleString()})` : (p.lastGuess ? "Ocean / Unknown" : "No guess"))) : (p.lastGuess ? `${Math.round(p.roundDist).toLocaleString()} km` : "No guess");
+            overlay.innerHTML += `<div class="overlay-score-row" style="flex-direction: column;"><div style="display:flex; justify-content: space-between; width: 100%;"><div><b>${idx+1}. ${p.name}</b><br><small style="color:#a6adc8;">${distText}</small></div><div style="color: var(--success); font-weight: bold; margin-left: 10px;">+${p.roundScore}</div></div>${p.bonusScore > 0 ? `<div class="bonus-text">Fastest Bonus: +${p.bonusScore}</div>` : ""}</div>`;
+        });
+
+        if (resultMap === null) { 
+            resultMap = L.map('result-map', { 
+                zoomControl: false, 
+                worldCopyJump: false, 
+                maxBounds: [[-90, -180], [90, 180]] 
+            }); 
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19 }).addTo(resultMap); 
+        }
+
+        resultMarkers.forEach(m => resultMap.removeLayer(m)); resultMarkers = []; 
+        const tIcon = L.divIcon({ className: 'target-pin', html: '📍', iconSize: [36, 36], iconAnchor: [18, 18] }); 
+        resultMarkers.push(L.marker([currentTarget.lat, currentTarget.lng], {icon: tIcon}).addTo(resultMap));
+        
+        players.forEach(p => { 
+            if(p.lastGuess) { 
+                const pIcon = L.divIcon({ className: 'player-pin', html: p.name.substring(0, 2).toUpperCase(), iconSize: [30, 30], iconAnchor: [15, 15] }); 
+                resultMarkers.push(L.marker([p.lastGuess.lat, p.lastGuess.lng], {icon: pIcon}).addTo(resultMap)); 
+                resultMarkers.push(L.polyline([ [p.lastGuess.lat, p.lastGuess.lng], [currentTarget.lat, currentTarget.lng] ], { color: '#11111b', weight: 2, dashArray: '5, 8', opacity: 0.8 }).addTo(resultMap)); 
+            } 
+        });
+
+        // Group Results Normalization Feature implementation
+        setTimeout(() => { 
+            resultMap.invalidateSize(); 
+            if(resultMarkers.length > 0) { 
+                let featureGroup = L.featureGroup(resultMarkers);
+                resultMap.fitBounds(featureGroup.getBounds().pad(0.1), { paddingTopLeft: [280, 20], paddingBottomRight: [20, 20], maxZoom: 10 }); 
+            } 
+        }, 100);
+    }
+
+    function nextRoundOrFinish() { currentRound++; if (currentRound > totalRounds) { if (mode === 'online' && isHost) { broadcast({ type: 'END_GAME', players: players }); localStorage.removeItem('geopin_save'); } showFinalResults(); } else { if (mode === 'online' && isHost) broadcast({ type: 'NEXT_ROUND', round: currentRound }); if (mode === 'local') setupLocalRound(); else startTurn(); } }
+
+    function showFinalResults() { if (mode === 'online') { navTo('carnaby-screen'); carnabyTriggered = false; document.getElementById('carnaby-door').className = 'door-scene'; document.getElementById('carnaby-instruction').style.opacity = 1; carnabyTimeout = setTimeout(() => { if(!carnabyTriggered) triggerCarnaby(); }, 5000); } else showRealScoreboard(); }
+
+    function triggerCarnaby() {
+        if (carnabyTriggered) { clearTimeout(carnabyTimeout); showRealScoreboard(); return; }
+        carnabyTriggered = true; clearTimeout(carnabyTimeout); document.getElementById('carnaby-instruction').style.opacity = 0;
+        const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore); const highestScore = sorted[0].totalScore;
+        const me = players.find(p => p.id === originalMyId || p.id === myId); const isWinner = (me && me.totalScore === highestScore && highestScore > 0);
+        const door = document.getElementById('carnaby-door');
+        if (isWinner) door.classList.add('door-open'); else door.classList.add('door-blocked');
+        carnabyTimeout = setTimeout(() => showRealScoreboard(), 8000); 
+    }
+
+    function showRealScoreboard() {
+        navTo('final-results-screen'); const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore); const board = document.getElementById('final-leaderboard'); board.innerHTML = '';
+        sorted.forEach((p, idx) => { const medal = idx === 0 ? '🏆' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : '')); board.innerHTML += `<div class="score-row"><div style="font-size: 20px;">${medal} <b>${p.name}</b></div><div style="color: var(--success); font-size: 22px; font-weight: bold;">${p.totalScore.toLocaleString()}</div></div>`; });
+        document.getElementById('play-again-btn').style.display = (mode === 'local' || isHost) ? 'block' : 'none';
+    }
+
+    function getDist(lat1, lon1, lat2, lon2) { const R = 6371, dLat = (lat2-lat1)*(Math.PI/180), dLon = (lon2-lon1)*(Math.PI/180); const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2); return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); }
 </script>
 </body>
 </html>
