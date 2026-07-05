@@ -340,8 +340,7 @@
         mountains: rawDb.mountains.map(i => ({ name: i[0], lat: i[1], lng: i[2] })),
         landmarks: rawDb.landmarks.map(i => ({ name: i[0], lat: i[1], lng: i[2] }))
     };
-
-    let mode = 'local'; let gameCategory = 'cities'; let isHost = false; let players = []; let totalRounds = 3; let currentRound = 1; let currentLocations = []; let currentTarget = null; let activeScreen = 'home-screen';
+        let mode = 'local'; let gameCategory = 'cities'; let isHost = false; let players = []; let totalRounds = 3; let currentRound = 1; let currentLocations = []; let currentTarget = null; let activeScreen = 'home-screen';
     let timeLimit = 0; let timerInterval = null; let turnStartTime = 0; let currentPlayerIndex = 0; 
     let peer = null; let connections = {}; let hostConn = null; let myId = ''; let originalMyId = null; let targetRoomCode = ''; let onlineGuessesReceived = 0; let autoReconnectInterval = null;
     let map = null, currentMarker = null, currentGuess = null; let resultMap = null, resultMarkers = [];
@@ -686,3 +685,4 @@
 </script>
 </body>
 </html>
+
