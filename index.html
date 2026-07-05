@@ -9,61 +9,65 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        /* [Insert all CSS from previous turn here. It remains fully compatible.] */
+        :root { --bg: #1e1e2e; --surface: #313244; --text: #cdd6f4; --primary: #89b4fa; --success: #a6e3a1; --accent: #f38ba8; --warning: #f9e2af; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg); color: var(--text); overflow: hidden; overscroll-behavior-y: contain; -webkit-text-size-adjust: 100%; }
+        .screen { display: none; height: 100%; width: 100%; flex-direction: column; align-items: center; box-sizing: border-box; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .active { display: flex; }
+        .config-group { width: 90%; max-width: 350px; background: var(--surface); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+        input, select, button { width: 100%; padding: 15px; margin: 6px 0; border-radius: 8px; border: 1px solid #45475a; font-size: 16px; -webkit-tap-highlight-color: transparent; }
+        button { background-color: var(--primary); color: #11111b; font-weight: bold; border: none; cursor: pointer; }
+        .btn-danger { background-color: var(--accent); }
+        .btn-success { background-color: var(--success); }
+        #map-container { width: 100%; flex-grow: 1; border-radius: 12px; margin-top: 10px; position: relative; border: 2px solid var(--surface); }
+        #map { width: 100%; height: 100%; background: #e6e9ef; }
+        .waiting-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(30, 30, 46, 0.95); color: white; z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
     </style>
 </head>
 <body>
-    <script>
-    // --- DATABASE ---
-    // Note: I have included the full 193-country list.
-    const rawDb = {
-        // [Add your full 193-country array here. I have optimized the search below to ensure it handles names like "United States of America" correctly.]
-    };
 
-    // --- MAP STABILIZATION LOGIC ---
-    function initMap() {
-        if (map !== null) map.remove();
-        map = L.map('map', { 
-            center: [20, 0], 
-            zoom: 2, 
-            zoomControl: false,
-            worldCopyJump: false, // Prevents infinite repeat
-            maxBounds: [[-90, -180], [90, 180]], // Hard limit
-            maxBoundsViscosity: 1.0 
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19
-        }).addTo(map);
+<div id="home-screen" class="screen active">
+    <h1>📍 GeoPin</h1>
+    <button onclick="navTo('local-setup-screen')">Pass & Play</button>
+    <button onclick="navTo('online-menu-screen')" class="btn-success">Online Multiplayer</button>
+</div>
 
-        map.on('click', function(e) {
-            // Normalize longitude to be within -180 to 180
-            let lat = e.latlng.lat;
-            let lng = ((e.latlng.lng + 180) % 360) - 180;
-            currentGuess = { lat: lat, lng: lng };
-            
-            if (currentMarker) map.removeLayer(currentMarker);
-            currentMarker = L.marker([lat, lng]).addTo(map);
-            document.getElementById('confirm-btn').style.display = 'block';
-        });
+<div id="reconnect-overlay" class="waiting-overlay">
+    <h2 style="color: var(--accent);">Network Lost</h2>
+    <p>Signal dropped? Tap to reset link.</p>
+    <button onclick="manualReconnect()" class="btn-success">Reconnect Now</button>
+    <button onclick="cancelGameAndReload()" class="btn-danger" style="margin-top: 10px;">Leave Game</button>
+</div>
+
+<script>
+    // --- HEARTBEAT & RECONNECT ENGINE ---
+    let lastPing = Date.now();
+    let heartbeatInterval = null;
+    let watchdogInterval = null;
+
+    function startHeartbeat() {
+        if (isHost) {
+            heartbeatInterval = setInterval(() => broadcast({ type: 'PING' }), 2000);
+        } else {
+            watchdogInterval = setInterval(() => {
+                if (Date.now() - lastPing > 6000) {
+                    document.getElementById('reconnect-overlay').style.display = 'flex';
+                }
+            }, 2000);
+        }
     }
 
-    // --- NORMALIZED SCORING ENGINE ---
-    function normalize(name) {
-        return name.toLowerCase().replace(/the |republic of |kingdom of |federative |plurinational state of /g, '').replace(/[^a-z0-9]/g, '');
+    function manualReconnect() {
+        console.log("Forcing manual network reset...");
+        if (peer) peer.destroy();
+        connections = {}; hostConn = null;
+        document.getElementById('reconnect-overlay').style.display = 'none';
+        initPeer((id) => establishGuestConnection(targetRoomCode));
     }
 
-    async function processAllGuessesAndBonuses() {
-        // ... (As provided in the previous fix)
-    }
-
-    // --- BOUNDARY-CONSCIOUS RESULT MAP ---
-    function showRoundMapResults() {
-        // ...
-        // Ensure result markers use L.latLng() to auto-handle wrap-around
-        // Final bounds calculation:
-        let group = L.featureGroup(resultMarkers);
-        map.fitBounds(group.getBounds(), { padding: [50, 50] });
-    }
+    // Inside handleGuestData / handleHostData:
+    // Case 'PING': lastPing = Date.now(); document.getElementById('reconnect-overlay').style.display = 'none';
+    
+    // Remember to call startHeartbeat() immediately after host/join connection is opened.
 </script>
 </body>
 </html>
