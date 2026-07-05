@@ -31,7 +31,7 @@
         }
         .active { display: flex; }
         
-        h1, h2, h3 { text-align: center; margin: 10px 0; select-search: none; }
+        h1, h2, h3 { text-align: center; margin: 10px 0; }
         .config-group {
             width: 90%; max-width: 350px; background: var(--surface);
             padding: 15px; border-radius: 12px; margin-bottom: 15px; box-sizing: border-box;
@@ -114,6 +114,7 @@
 
         /* --- CARNABY VIP SYSTEM (Cross-Browser Optimized) --- */
         #carnaby-screen { justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        #carnaby-instruction { transition: opacity 0.5s; }
         .carnaby-sign {
             font-family: "Courier New", Courier, monospace; font-weight: 900; font-size: 28px;
             color: #fff; text-transform: uppercase; letter-spacing: 4px;
@@ -317,7 +318,7 @@
     
     <!-- CARNABY VIP SCREEN -->
     <div id="carnaby-screen" class="screen" onclick="triggerCarnaby()">
-        <p style="color: #a6adc8; margin-bottom: 40px;">Tap the door...</p>
+        <p style="color: #a6adc8; margin-bottom: 40px;" id="carnaby-instruction">Tap the door...</p>
         <div class="carnaby-sign">CARNABY</div>
         <div id="carnaby-door" class="door-scene">
             <div class="door-frame">
@@ -690,7 +691,7 @@
                 document.getElementById('lobby-status').innerText = "Connected! Waiting for host to start...";
                 navTo('lobby-screen');
             } else if (data.state.activeScreen === 'carnaby-screen' || data.state.activeScreen === 'final-results-screen') {
-                showRealScoreboard();
+                showFinalResults();
             }
         }
         else if (data.type === 'START_GAME') {
@@ -705,7 +706,7 @@
             currentRound = data.round; startTurn();
         }
         else if (data.type === 'END_GAME') {
-            players = data.players; showRealScoreboard();
+            players = data.players; showFinalResults();
         }
         else if (data.type === 'RETURN_TO_LOBBY') {
             players = data.players;
@@ -1020,6 +1021,11 @@
             navTo('carnaby-screen');
             carnabyTriggered = false;
             document.getElementById('carnaby-door').className = 'door-scene'; 
+            document.getElementById('carnaby-instruction').style.opacity = 1;
+            
+            carnabyTimeout = setTimeout(() => {
+                if(!carnabyTriggered) triggerCarnaby();
+            }, 5000);
         } else {
             showRealScoreboard();
         }
@@ -1033,6 +1039,9 @@
         }
         
         carnabyTriggered = true;
+        clearTimeout(carnabyTimeout);
+        document.getElementById('carnaby-instruction').style.opacity = 0;
+        
         const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore);
         const highestScore = sorted[0].totalScore;
         
@@ -1048,7 +1057,7 @@
 
         carnabyTimeout = setTimeout(() => {
             showRealScoreboard();
-        }, 10000); 
+        }, 8000); 
     }
 
     function showRealScoreboard() {
